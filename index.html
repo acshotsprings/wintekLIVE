@@ -3,545 +3,455 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WinTek LIVE — Chris Campbell</title>
+<title>WinTek LIVE — Weekly Status Trends</title>
 <link rel="icon" type="image/png" href="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png">
-<meta name="apple-mobile-web-app-title" content="WinTek LIVE">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#011E59">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --navy: #011E59;
     --navy-dark: #00153f;
     --navy-light: #1a3a7a;
     --red: #DD1A1A;
     --red-dark: #b51414;
-    --white: #ffffff;
-    --offwhite: #f5f7fb;
-    --gray: #6b7280;
-    --gray-light: #e5e7eb;
-    --green: #16a34a;
-    --amber: #f59e0b;
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --border: #e2e0d8;
+    --text: #1a1917;
+    --muted: #6b6860;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--offwhite);
-    color: #111;
-    -webkit-font-smoothing: antialiased;
-  }
-  header {
-    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
-    color: white;
-    padding: 18px 20px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  .header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    max-width: 1400px;
-    margin: 0 auto;
-    gap: 16px;
-  }
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .brand-logo {
-    width: 52px;
-    height: 52px;
-    background: white;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-    flex-shrink: 0;
-  }
-  .brand-logo img { width: 100%; height: auto; }
-  .brand-text h1 {
-    font-size: 1.3rem;
-    font-weight: 800;
-    letter-spacing: 0.5px;
-    line-height: 1.1;
-  }
-  .brand-text h1 .red { color: #ff8a8a; }
-  .brand-text .sub {
-    font-size: 0.78rem;
-    opacity: 0.85;
-    margin-top: 2px;
-  }
-  .nav-links {
-    display: flex;
-    gap: 8px;
-  }
-  .nav-links a {
-    color: white;
-    text-decoration: none;
-    padding: 8px 14px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    background: rgba(255,255,255,0.12);
-    transition: background 0.15s;
-  }
-  .nav-links a:hover { background: rgba(255,255,255,0.22); }
-  .nav-links a.active { background: var(--red); }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 1.5rem; }
 
-  main {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-  .status-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 18px;
-    color: var(--gray);
-    font-size: 0.82rem;
-    font-weight: 500;
-  }
-  .live-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    animation: pulse 1.8s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(1.3); }
-  }
-  .refresh-btn {
-    margin-left: auto;
-    background: var(--navy);
-    color: white;
-    border: none;
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .refresh-btn:hover { background: var(--navy-light); }
+  header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--navy); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-logo { width: 50px; height: 50px; background: white; border: 2px solid var(--navy); border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 4px; flex-shrink: 0; }
+  .brand-logo img { width: 100%; }
+  .brand-text h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: var(--navy); }
+  .brand-text h1 .red { color: var(--red); }
+  .brand-text .sub { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
 
-  .kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 14px;
-    margin-bottom: 20px;
-  }
-  .kpi {
-    background: white;
-    border-radius: 10px;
-    padding: 16px 18px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    border-left: 4px solid var(--navy);
-    position: relative;
-  }
-  .kpi.red { border-left-color: var(--red); }
-  .kpi.green { border-left-color: var(--green); }
-  .kpi.amber { border-left-color: var(--amber); }
-  .kpi-label {
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--gray);
-    font-weight: 700;
-    margin-bottom: 6px;
-  }
-  .kpi-value {
-    font-size: 1.55rem;
-    font-weight: 800;
-    color: var(--navy);
-    line-height: 1.1;
-  }
-  .kpi-sub {
-    font-size: 0.75rem;
-    color: var(--gray);
-    margin-top: 4px;
-  }
+  .nav-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .nav-pill { padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; text-decoration: none; transition: all 0.15s; }
+  .nav-pill.active { background: var(--red); color: #fff; }
+  .nav-pill.inactive { background: var(--navy); color: #fff; }
+  .nav-pill.inactive:hover { background: var(--navy-light); }
 
-  .grid-2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-bottom: 20px;
-  }
-  @media (max-width: 768px) {
-    .grid-2 { grid-template-columns: 1fr; }
-  }
-  .card {
-    background: white;
-    border-radius: 10px;
-    padding: 18px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  }
-  .card h2 {
-    font-size: 0.95rem;
-    color: var(--navy);
-    margin-bottom: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 700;
-  }
-  .card h2::before {
-    content: '';
-    width: 4px;
-    height: 16px;
-    background: var(--red);
-    border-radius: 2px;
-  }
+  .legacy { background: linear-gradient(135deg, #f5f7fb 0%, #e5e7eb 100%); border-left: 4px solid var(--navy); border-radius: 8px; padding: 12px 16px; margin-bottom: 1.5rem; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .legacy strong { color: var(--navy); font-weight: 600; }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.82rem;
-  }
-  th {
-    text-align: left;
-    padding: 8px 10px;
-    background: var(--offwhite);
-    color: var(--navy);
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    letter-spacing: 0.5px;
-    border-bottom: 2px solid var(--navy);
-  }
-  td {
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--gray-light);
-  }
-  tr:last-child td { border-bottom: none; }
-  tr:hover td { background: var(--offwhite); }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1.5rem; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; min-width: 110px; transition: opacity 0.2s; }
+  .stat.dimmed { opacity: 0.3; }
+  .stat-val { font-size: 24px; font-weight: 600; line-height: 1; margin-bottom: 4px; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+  .stat-pct { font-size: 12px; font-weight: 500; font-family: 'DM Mono', monospace; opacity: 0.65; }
+  .stat-lbl { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; }
 
-  .status-pill {
-    display: inline-block;
-    padding: 2px 9px;
-    border-radius: 999px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-  .s-sold { background: #dcfce7; color: #166534; }
-  .s-not-sold { background: #fee2e2; color: #991b1b; }
-  .s-ng { background: #fef3c7; color: #92400e; }
-  .s-no-show { background: #f3f4f6; color: #4b5563; }
-  .s-cancelled { background: #ddd6fe; color: #5b21b6; }
-  .s-rescheduled { background: #cffafe; color: #155e75; }
-  .s-one-leg { background: #fce7f3; color: #9f1239; }
-  .s-default { background: var(--gray-light); color: var(--gray); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.85rem; font-family: 'DM Mono', monospace; }
 
-  .priorTenure {
-    background: linear-gradient(135deg, #f5f7fb 0%, #e5e7eb 100%);
-    border: 1px solid var(--gray-light);
-    border-radius: 10px;
-    padding: 16px 18px;
-    margin-bottom: 20px;
-  }
-  .priorTenure h3 {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--gray);
-    margin-bottom: 10px;
-    font-weight: 700;
-  }
-  .priorTenure .row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 18px;
-  }
-  .priorTenure .stat {
-    flex: 1 1 auto;
-    min-width: 100px;
-  }
-  .priorTenure .stat .num {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: var(--navy);
-  }
-  .priorTenure .stat .lbl {
-    font-size: 0.7rem;
-    color: var(--gray);
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-  }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; }
+  .toggle-btn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 999px; border: 1.5px solid; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s, transform 0.1s; background: transparent; font-family: 'DM Sans', sans-serif; }
+  .toggle-btn:hover { transform: translateY(-1px); }
+  .toggle-btn:active { transform: scale(0.97); }
+  .toggle-btn.off { opacity: 0.28; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .all-btn { background: transparent; border: 1.5px solid #ccc; color: #888; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .refresh-btn { background: var(--red); border: none; color: white; border-radius: 999px; padding: 6px 16px; font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; font-weight: 500; }
+  .refresh-btn:hover { background: var(--red-dark); }
+  .chart-wrap { position: relative; width: 100%; height: 380px; }
 
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--gray);
-  }
-  .empty-state .big {
-    font-size: 2.5rem;
-    margin-bottom: 8px;
-  }
-  .loading {
-    text-align: center;
-    padding: 30px;
-    color: var(--gray);
-    font-size: 0.85rem;
-  }
-  .error {
-    background: #fee2e2;
-    color: #991b1b;
-    padding: 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-  }
-  footer {
-    text-align: center;
-    padding: 30px 20px;
-    color: var(--gray);
-    font-size: 0.75rem;
-  }
-  footer .stripes {
-    display: inline-block;
-    margin: 0 6px;
-    color: var(--red);
-  }
+  .insight { background: #fff8e6; border: 1px solid #fde68a; border-left: 4px solid var(--red); border-radius: 8px; padding: 14px 18px; font-size: 13px; color: #78350f; line-height: 1.6; margin-bottom: 1.25rem; }
+  .insight strong { font-weight: 600; }
+
+  .attrition-panel { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1.5rem; }
+  .attrition-card { border-radius: 10px; padding: 12px 18px; font-size: 13px; line-height: 1.6; flex: 1; min-width: 200px; }
+  .attrition-card.rescinded { background: #faf5ff; border: 1px solid #d8b4fe; color: #581c87; }
+  .attrition-card.canceled { background: #f9fafb; border: 1px solid #d1d5db; color: #374151; }
+  .attrition-card .big-num { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+  .attrition-card .sub { font-size: 11px; font-family: 'DM Mono', monospace; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.5px; }
+  .attrition-card .note { margin-top: 6px; font-size: 12px; opacity: 0.85; }
+
+  .empty-state { background: var(--surface); border: 2px dashed var(--border); border-radius: 12px; text-align: center; padding: 3rem 1rem; color: var(--muted); }
+  .empty-state .big { font-size: 3rem; margin-bottom: 8px; }
+  .empty-state .msg { font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+  .empty-state .sub { font-size: 12px; font-family: 'DM Mono', monospace; }
+
+  .loading { text-align: center; padding: 3rem; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 13px; }
+  .error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 14px 18px; font-size: 13px; color: #991b1b; margin-bottom: 1rem; }
+
+  footer { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; text-align: center; }
+  footer .stripe { color: var(--red); margin: 0 5px; }
+  #last-updated { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
 </style>
 </head>
 <body>
+
 <header>
-  <div class="header-row">
-    <div class="brand">
-      <div class="brand-logo">
-        <img src="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png" alt="WinTek USA">
-      </div>
-      <div class="brand-text">
-        <h1>WIN<span class="red">TEK</span> LIVE</h1>
-        <div class="sub">Chris Campbell · Jackson, MS</div>
-      </div>
+  <div class="brand">
+    <div class="brand-logo">
+      <img src="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png" alt="WinTek USA">
     </div>
-    <div class="nav-links">
-      <a href="index.html" class="active">Dashboard</a>
-      <a href="map.html">Map</a>
+    <div class="brand-text">
+      <h1>WIN<span class="red">TEK</span> LIVE</h1>
+      <div class="sub">Weekly Status Trends · Chris Campbell · Jackson, MS · 2026</div>
     </div>
+  </div>
+  <div class="nav-links">
+    <a href="index.html" class="nav-pill active">● Trends</a>
+    <a href="stats.html" class="nav-pill inactive">Live Stats</a>
+    <a href="map.html" class="nav-pill inactive">Territory Map</a>
   </div>
 </header>
 
-<main>
-  <div class="status-bar">
-    <div class="live-dot"></div>
-    <span id="last-updated">Loading…</span>
-    <button class="refresh-btn" onclick="loadAll()">Refresh</button>
-  </div>
+<div class="legacy">
+  📜 <strong>Career Legacy (Pre-WinTek):</strong> WinChoice 2025–2026 closed at $36,540.68 · 20 sold · 27 combined · 20.2% close rate · 20/20 books read ✓ — historical reference only, not counted in WinTek totals below.
+</div>
 
-  <div class="priorTenure">
-    <h3>📜 Career Legacy — Pre-WinTek (WinChoice 2025–2026, Archived)</h3>
-    <div class="row">
-      <div class="stat"><div class="num">$36,540.68</div><div class="lbl">Lifetime Earnings (Prior Role)</div></div>
-      <div class="stat"><div class="num">20</div><div class="lbl">Lifetime Sales Closed</div></div>
-      <div class="stat"><div class="num">27</div><div class="lbl">Combined (incl. NG)</div></div>
-      <div class="stat"><div class="num">20.2%</div><div class="lbl">Career Close Rate</div></div>
-      <div class="stat"><div class="num">20/20 ✓</div><div class="lbl">Books Read Goal</div></div>
-    </div>
-    <div style="font-size:0.7rem;color:var(--gray);margin-top:10px;font-style:italic;">Historical reference only — does not count toward WinTek YTD totals below.</div>
-  </div>
-
-  <h2 style="font-size:1rem;color:var(--navy);margin-bottom:12px;display:flex;align-items:center;gap:8px;font-weight:700;">
-    <span style="display:inline-block;width:4px;height:18px;background:var(--red);border-radius:2px;"></span>
-    WinTek USA — Current Performance (YTD)
-  </h2>
-
-  <div id="kpis" class="kpi-grid">
-    <div class="loading">Loading WinTek data…</div>
-  </div>
-
-  <div class="grid-2">
-    <div class="card">
-      <h2>Recent Appointments</h2>
-      <div id="recent-table"><div class="loading">Loading…</div></div>
-    </div>
-    <div class="card">
-      <h2>Status Breakdown</h2>
-      <div id="status-table"><div class="loading">Loading…</div></div>
-    </div>
-  </div>
-
+<div id="error-box" class="error" style="display:none;"></div>
+<div id="loading" class="loading">Loading live data from WinTek Sales Sheet…</div>
+<div id="empty" class="empty-state" style="display:none;">
+  <div class="big">🚀</div>
+  <div class="msg">Fresh start at WinTek!</div>
+  <div class="sub">No appointments logged yet — your first will populate the trends below.</div>
+</div>
+<div id="main" style="display:none;">
+  <div class="stats" id="stats"></div>
+  <div class="insight" id="insight"></div>
+  <div class="attrition-panel" id="attrition-panel"></div>
   <div class="card">
-    <h2>All Sold Deals (YTD)</h2>
-    <div id="sold-table"><div class="loading">Loading…</div></div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+      <div class="card-title" style="margin-bottom:0;">Toggle status lines</div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span id="last-updated"></span>
+        <button class="refresh-btn" onclick="loadData()">Refresh</button>
+      </div>
+    </div>
+    <div class="controls" id="controls"></div>
+    <div class="chart-wrap"><canvas id="chart"></canvas></div>
   </div>
-</main>
+</div>
 
 <footer>
-  <div>WinTek LIVE Dashboard <span class="stripes">★</span> Built for Chris Campbell <span class="stripes">★</span> Pulls live from WinTek Sales Sheet</div>
-  <div style="margin-top:6px;opacity:0.6;">© 2026 — Patriotic palette: Navy #011E59 · Red #DD1A1A</div>
+  Live data <span class="stripe">★</span> WinTek Sales Sheet · MASTER tab <span class="stripe">★</span> Pulled via Apps Script endpoint
 </footer>
 
 <script>
+// ═══════════════════════════════════════════════════════════
+// WinTek LIVE — Weekly Status Trends
+// Patriotic palette: Navy #011E59 · Red #DD1A1A · White
+// Data source: WinTek Sales Sheet via Apps Script web app
+// ═══════════════════════════════════════════════════════════
+
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxMi6s-OLmDwK8UMfBbnvy_a8_VhbrEwHACDl8hYKiiYZClaFqOxDmm0jvAdiL2NbixUQ/exec';
+const MASTER_TAB = 'MASTER';
 
-const STATUS_CLASS = {
-  'Sold': 's-sold',
-  'Not Sold': 's-not-sold',
-  'NG': 's-ng',
-  'No Show': 's-no-show',
-  'Cancelled': 's-cancelled',
-  'Rescheduled': 's-rescheduled',
-  'One Leg': 's-one-leg',
-  'No Sale - Follow Up': 's-not-sold',
-  'Rescinded': 's-cancelled'
+// Status colors — kept consistent with WinChoice trends so muscle memory carries over
+const STATUS_COLORS = {
+  'Sold': '#1D9E75',
+  'Not Sold': '#E24B4A',
+  'Canceled': '#888780',
+  'Cancelled': '#888780',
+  'NG': '#3B82F6',
+  'One Leg': '#F97316',
+  'No Show': '#EAB308',
+  'Rescheduled': '#8B5CF6',
+  'No Sale Follow Up': '#EC4899',
+  'No Sale - Follow Up': '#EC4899',
+  'No Sale FU': '#EC4899',
+  'Rescinded': '#A855F7'
 };
+const TOTAL_COLOR = '#011E59';
+const STATUS_ORDER = ['Sold','Not Sold','No Sale - Follow Up','No Sale Follow Up','NG','Cancelled','Canceled','No Show','Rescheduled','Rescinded','One Leg'];
 
-function statusPill(status) {
-  if (!status) return '';
-  const cls = STATUS_CLASS[status] || 's-default';
-  return `<span class="status-pill ${cls}">${status}</span>`;
+const STAT_CARDS = [
+  {id:'stat-sold',     label:'Total Sold',  color:'#1D9E75', keys:['Sold']},
+  {id:'stat-notsold',  label:'Not Sold',    color:'#E24B4A', keys:['Not Sold']},
+  {id:'stat-noshow',   label:'No Shows',    color:'#EAB308', keys:['No Show']},
+  {id:'stat-ng',       label:'NGs',         color:'#3B82F6', keys:['NG']},
+  {id:'stat-canceled', label:'Cancelled',   color:'#888780', match:'cancel'},
+  {id:'stat-reschedule',label:'Rescheduled',color:'#8B5CF6', keys:['Rescheduled']},
+  {id:'stat-rescinded',label:'Rescinded',   color:'#A855F7', keys:['Rescinded']},
+  {id:'stat-oneleg',   label:'One Leg',     color:'#F97316', keys:['One Leg']},
+  {id:'stat-nsfu',     label:'No Sale F/U', color:'#EC4899', keys:['No Sale Follow Up','No Sale - Follow Up','No Sale FU']},
+  {id:'stat-total',    label:'Total Appts', color:TOTAL_COLOR,keys:null},
+];
+
+let chartInstance = null, visible = [], statuses = [], statusTotals = {}, grandTotal = 0, _orderedStatuses = [];
+
+function weekEnding(date) {
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  const diff = (6 - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+function dateKey(d) { return (d.getMonth()+1) + '/' + d.getDate(); }
+function flatLine(data) {
+  const active = data.filter(v => v > 0);
+  const avg = active.length > 0 ? active.reduce((a,b) => a+b, 0) / active.length : 0;
+  return data.map(() => parseFloat(avg.toFixed(2)));
+}
+function pct(count, total) { if (!total) return '0%'; return Math.round((count/total)*100) + '%'; }
+function sumByPrefix(prefix) {
+  const p = prefix.trim().toLowerCase();
+  return Object.keys(statusTotals).filter(k => k.trim().toLowerCase().startsWith(p)).reduce((sum,k) => sum + statusTotals[k], 0);
 }
 
-function fmtMoney(n) {
-  if (!n && n !== 0) return '';
-  const num = typeof n === 'string' ? parseFloat(n) : n;
-  if (isNaN(num) || num === 0) return '';
-  return '$' + num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-}
-
-function fmtDate(d) {
-  if (!d) return '';
-  try {
-    const dt = new Date(d);
-    if (isNaN(dt)) return d;
-    return (dt.getMonth()+1) + '/' + dt.getDate() + '/' + dt.getFullYear();
-  } catch(e) { return d; }
-}
-
-async function fetchSheet(tab, range) {
-  const url = `${ENDPOINT}?tab=${encodeURIComponent(tab)}&range=${encodeURIComponent(range)}`;
-  const r = await fetch(url);
-  return await r.json();
-}
-
-async function loadAll() {
-  document.getElementById('last-updated').textContent = 'Updating…';
-  try {
-    const data = await fetchSheet('MASTER', 'A1:V500');
-    if (data.error) throw new Error(data.error);
-    renderDashboard(data);
-    const now = new Date();
-    document.getElementById('last-updated').textContent = 
-      'Live · Updated ' + now.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
-  } catch(e) {
-    document.getElementById('kpis').innerHTML = 
-      `<div class="error">Could not load data: ${e.message}</div>`;
-    document.getElementById('last-updated').textContent = 'Error loading';
-  }
-}
-
-function renderDashboard(data) {
-  if (!data || data.length < 2) {
-    document.getElementById('kpis').innerHTML = 
-      '<div class="empty-state"><div class="big">🚀</div><div>Fresh start! No appointments logged yet.</div><div style="margin-top:6px;font-size:0.8rem;">Book your first WinTek appointment and it shows up here.</div></div>';
-    document.getElementById('recent-table').innerHTML = '<div class="empty-state">No data yet.</div>';
-    document.getElementById('status-table').innerHTML = '<div class="empty-state">No data yet.</div>';
-    document.getElementById('sold-table').innerHTML = '<div class="empty-state">No data yet.</div>';
-    return;
-  }
-  const rows = data.slice(1).filter(r => r[0] || r[2]); // has date or customer
-  const sold = rows.filter(r => r[7] === 'Sold');
-  const ng = rows.filter(r => r[7] === 'NG');
-  const totalSale = sold.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
-  const totalCommission = sold.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
-  const totalWindows = sold.reduce((s,r) => s + (parseFloat(r[12])||0), 0);
-  const soldWindows = sold.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
-  const closeRate = rows.length ? (sold.length / rows.length * 100).toFixed(1) : 0;
-  const avgPpu = soldWindows ? (totalSale / soldWindows) : 0;
-
-  // KPIs
-  document.getElementById('kpis').innerHTML = `
-    <div class="kpi green">
-      <div class="kpi-label">Income YTD</div>
-      <div class="kpi-value">${fmtMoney(totalCommission) || '$0.00'}</div>
-      <div class="kpi-sub">Toward $250K goal</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Sales Closed</div>
-      <div class="kpi-value">${sold.length}</div>
-      <div class="kpi-sub">${ng.length} NG · ${sold.length + ng.length} combined</div>
-    </div>
-    <div class="kpi red">
-      <div class="kpi-label">Total Revenue</div>
-      <div class="kpi-value">${fmtMoney(totalSale) || '$0.00'}</div>
-      <div class="kpi-sub">${soldWindows} windows sold</div>
-    </div>
-    <div class="kpi amber">
-      <div class="kpi-label">Close Rate</div>
-      <div class="kpi-value">${closeRate}%</div>
-      <div class="kpi-sub">${rows.length} appts pitched</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Avg PPU</div>
-      <div class="kpi-value">${fmtMoney(avgPpu) || '$0.00'}</div>
-      <div class="kpi-sub">Per window</div>
-    </div>
-  `;
-
-  // Recent appointments (last 8)
-  const recent = rows.slice(-8).reverse();
-  document.getElementById('recent-table').innerHTML = recent.length ? `
-    <table>
-      <thead><tr><th>Date</th><th>Customer</th><th>City</th><th>Status</th></tr></thead>
-      <tbody>${recent.map(r => `
-        <tr>
-          <td>${fmtDate(r[0])}</td>
-          <td>${r[2] || ''}</td>
-          <td>${r[4] || ''}</td>
-          <td>${statusPill(r[7])}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  ` : '<div class="empty-state">No appointments yet.</div>';
-
-  // Status breakdown
-  const statusCounts = {};
-  rows.forEach(r => {
-    const s = r[7] || 'Pending';
-    statusCounts[s] = (statusCounts[s] || 0) + 1;
+function renderStats() {
+  const container = document.getElementById('stats');
+  container.innerHTML = '';
+  STAT_CARDS.forEach(card => {
+    let count;
+    if (card.keys === null) { count = grandTotal; }
+    else if (card.match) { count = sumByPrefix(card.match); }
+    else { count = card.keys.reduce((sum, k) => sum + (statusTotals[k] || 0), 0); }
+    if (count === 0 && card.keys !== null) return;
+    const p = card.keys === null ? '100%' : pct(count, grandTotal);
+    const div = document.createElement('div');
+    div.className = 'stat';
+    div.id = card.id;
+    div.innerHTML = `<div class="stat-val" style="color:${card.color}">${count}<span class="stat-pct">(${p})</span></div><div class="stat-lbl">${card.label}</div>`;
+    container.appendChild(div);
   });
-  const sortedStatuses = Object.entries(statusCounts).sort((a,b) => b[1]-a[1]);
-  document.getElementById('status-table').innerHTML = sortedStatuses.length ? `
-    <table>
-      <thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead>
-      <tbody>${sortedStatuses.map(([s,c]) => `
-        <tr>
-          <td>${statusPill(s)}</td>
-          <td>${c}</td>
-          <td>${(c/rows.length*100).toFixed(1)}%</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  ` : '<div class="empty-state">No status data yet.</div>';
-
-  // Sold deals
-  document.getElementById('sold-table').innerHTML = sold.length ? `
-    <table>
-      <thead><tr><th>Date</th><th>Customer</th><th>City</th><th>Total Sale</th><th>Windows</th><th>Commission</th></tr></thead>
-      <tbody>${sold.slice().reverse().map(r => `
-        <tr>
-          <td>${fmtDate(r[0])}</td>
-          <td>${r[2] || ''}</td>
-          <td>${r[4] || ''}</td>
-          <td>${fmtMoney(r[8])}</td>
-          <td>${r[13] || ''}</td>
-          <td>${fmtMoney(r[10])}</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>
-  ` : '<div class="empty-state"><div class="big">🎯</div><div>First sale awaits!</div></div>';
 }
 
-loadAll();
-setInterval(loadAll, 60000); // refresh every 60s
+function renderAttrition() {
+  const panel = document.getElementById('attrition-panel');
+  panel.innerHTML = '';
+  const rc = statusTotals['Rescinded'] || 0;
+  const cc = sumByPrefix('cancel');
+  const tsi = (statusTotals['Sold'] || 0) + rc;
+  const rp = tsi > 0 ? Math.round((rc/tsi)*100) : 0;
+  const cp = grandTotal > 0 ? Math.round((cc/grandTotal)*100) : 0;
+
+  const rCard = document.createElement('div');
+  rCard.className = 'attrition-card rescinded';
+  rCard.innerHTML = `<div class="big-num" style="color:#A855F7">${rc} <span style="font-size:16px">(${rp}%)</span></div><div class="sub">Rescinded</div><div class="note">${rp}% of closed sales came off the books. ${rp >= 10 ? '⚠️ Worth reviewing contract follow-up process.' : 'Healthy — keep reinforcing post-sale commitment.'}</div>`;
+
+  const cCard = document.createElement('div');
+  cCard.className = 'attrition-card canceled';
+  cCard.innerHTML = `<div class="big-num" style="color:#888780">${cc} <span style="font-size:16px">(${cp}%)</span></div><div class="sub">Cancelled</div><div class="note">${cp}% of total appointments cancelled. ${cp >= 20 ? '⚠️ High cancel rate.' : 'Within normal range.'}</div>`;
+
+  panel.appendChild(rCard);
+  panel.appendChild(cCard);
+}
+
+function syncStatDim() {
+  const uniqueLabels = ['Total Appts', ..._orderedStatuses];
+  const visMap = {};
+  uniqueLabels.forEach((lbl, i) => { visMap[lbl] = visible[i]; });
+  STAT_CARDS.forEach(card => {
+    const el = document.getElementById(card.id);
+    if (!el) return;
+    if (card.keys === null) {
+      el.classList.toggle('dimmed', !visMap['Total Appts']);
+    } else if (card.match) {
+      const p = card.match.trim().toLowerCase();
+      const matchLabels = uniqueLabels.filter(l => l.trim().toLowerCase().startsWith(p));
+      const anyOn = matchLabels.length === 0 || matchLabels.some(l => visMap[l] !== false);
+      el.classList.toggle('dimmed', !anyOn);
+    } else {
+      const anyOn = card.keys.some(k => visMap[k] !== false);
+      el.classList.toggle('dimmed', !anyOn);
+    }
+  });
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('error-box').style.display = 'none';
+
+  // Apps Script returns array with header row at index 0; we need columns A (Date) and H (Status)
+  const url = `${ENDPOINT}?tab=${encodeURIComponent(MASTER_TAB)}&range=A1:H500`;
+
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    if (!Array.isArray(json)) throw new Error('Unexpected response shape');
+
+    // Skip header row (index 0); keep rows that have date + status
+    const rows = json.slice(1).filter(r => r[0] && r[7]);
+
+    if (rows.length === 0) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('empty').style.display = 'block';
+      return;
+    }
+
+    const weekMap = {};
+    statusTotals = {};
+    grandTotal = 0;
+
+    rows.forEach(r => {
+      const rawDate = r[0];
+      const status = (r[7] || '').toString().trim();
+      if (!rawDate || !status) return;
+      const parsed = new Date(rawDate);
+      if (isNaN(parsed)) return;
+      const we = weekEnding(parsed);
+      const key = we.toISOString().slice(0, 10);
+      if (!weekMap[key]) weekMap[key] = { date: we, counts: {} };
+      weekMap[key].counts[status] = (weekMap[key].counts[status] || 0) + 1;
+      statusTotals[status] = (statusTotals[status] || 0) + 1;
+      grandTotal++;
+    });
+
+    const sortedKeys = Object.keys(weekMap).sort();
+    const weeks = sortedKeys.map(k => dateKey(weekMap[k].date));
+    const allStatuses = new Set();
+    sortedKeys.forEach(k => Object.keys(weekMap[k].counts).forEach(s => allStatuses.add(s)));
+    _orderedStatuses = [
+      ...STATUS_ORDER.filter(s => allStatuses.has(s)),
+      ...[...allStatuses].filter(s => !STATUS_ORDER.includes(s)).sort()
+    ];
+
+    const rawData = {};
+    _orderedStatuses.forEach(s => {
+      rawData[s] = sortedKeys.map(k => weekMap[k].counts[s] || 0);
+    });
+    const totals = sortedKeys.map((k, i) => _orderedStatuses.reduce((sum, s) => sum + (rawData[s][i] || 0), 0));
+
+    renderStats();
+    renderAttrition();
+
+    const nsData = rawData['No Show'] || [];
+    let worstWeek = '', worstRate = 0, worstNS = 0, worstTotal = 0;
+    weeks.forEach((w, i) => {
+      const rate = totals[i] > 0 ? nsData[i] / totals[i] : 0;
+      if (rate > worstRate) { worstRate = rate; worstWeek = w; worstNS = nsData[i]; worstTotal = totals[i]; }
+    });
+    document.getElementById('insight').innerHTML = worstWeek
+      ? `<strong>Watch:</strong> Week of ${worstWeek} — ${worstNS} no-show${worstNS !== 1 ? 's' : ''} out of ${worstTotal} total appointments = <strong>${Math.round(worstRate*100)}% no-show rate</strong>.`
+      : '<strong>Heads up:</strong> No no-show data yet — keep tracking through Q2.';
+
+    statuses = [];
+    statuses.push({ label: 'Total Appts', color: TOTAL_COLOR, data: totals, isAvg: false, width: 2.5, dash: [6,3] });
+    statuses.push({ label: 'Total Appts', color: TOTAL_COLOR, data: flatLine(totals), isAvg: true, width: 1.5, dash: [4,5] });
+    _orderedStatuses.forEach(s => {
+      const color = STATUS_COLORS[s] || '#999';
+      statuses.push({ label: s, color, data: rawData[s], isAvg: false });
+      statuses.push({ label: s, color, data: flatLine(rawData[s]), isAvg: true, width: 1.5, dash: [4,5] });
+    });
+
+    const uniqueLabels = ['Total Appts', ..._orderedStatuses];
+    visible = uniqueLabels.map(() => true);
+    buildChart(weeks);
+    buildControls(_orderedStatuses);
+    syncStatDim();
+
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-box').style.display = 'block';
+    document.getElementById('error-box').textContent = 'Error loading data: ' + e.message;
+  }
+}
+
+function buildChart(weeks) {
+  if (chartInstance) chartInstance.destroy();
+  const datasets = statuses.map(s => ({
+    label: s.isAvg ? ('avg__' + s.label) : s.label,
+    data: s.data,
+    borderColor: s.isAvg ? s.color + 'AA' : s.color,
+    backgroundColor: s.isAvg ? 'transparent' : s.color + '15',
+    borderWidth: s.width || 2,
+    borderDash: s.dash || [],
+    pointRadius: s.isAvg ? 0 : 4,
+    pointHoverRadius: s.isAvg ? 0 : 6,
+    tension: s.isAvg ? 0 : 0.4,
+    fill: false
+  }));
+  chartInstance = new Chart(document.getElementById('chart'), {
+    type: 'line',
+    data: { labels: weeks, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          backgroundColor: '#011E59',
+          titleColor: '#ffffff',
+          bodyColor: '#d1cfc8',
+          padding: 12,
+          filter: item => !item.dataset.label.startsWith('avg__'),
+          callbacks: {
+            label: () => '',
+            afterBody: function(items) {
+              if (!items.length) return [];
+              const idx = items[0].dataIndex;
+              const tot = chartInstance.data.datasets[0].data[idx] || 0;
+              if (tot === 0) return ['No appointments this week'];
+              const lines = ['── % of ' + tot + ' total appts ──'];
+              chartInstance.data.datasets.forEach(ds => {
+                if (ds.label === 'Total Appts' || ds.label.startsWith('avg__') || ds.hidden) return;
+                const val = ds.data[idx] || 0;
+                const p = Math.round((val/tot)*100);
+                const bar = '█'.repeat(Math.round(p/10)) || '·';
+                lines.push(ds.label + ': ' + val + '  (' + p + '%)  ' + bar);
+              });
+              return lines;
+            },
+            title: items => 'Week of ' + items[0].label
+          }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 12, family: 'DM Mono' }, color: '#888' } },
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { stepSize: 1, font: { size: 12, family: 'DM Mono' }, color: '#888' } }
+      },
+      interaction: { mode: 'index', intersect: false }
+    }
+  });
+}
+
+function buildControls(orderedStatuses) {
+  const controls = document.getElementById('controls');
+  controls.innerHTML = '';
+  const uniqueLabels = ['Total Appts', ...orderedStatuses];
+  uniqueLabels.forEach((lbl, i) => {
+    const color = lbl === 'Total Appts' ? TOTAL_COLOR : (STATUS_COLORS[lbl] || '#999');
+    const btn = document.createElement('button');
+    btn.className = 'toggle-btn';
+    btn.dataset.label = lbl;
+    btn.style.borderColor = color;
+    btn.style.color = color;
+    btn.innerHTML = '<span class="dot" style="background:' + color + '"></span>' + lbl;
+    btn.addEventListener('click', () => {
+      visible[i] = !visible[i];
+      btn.classList.toggle('off', !visible[i]);
+      chartInstance.data.datasets.forEach((ds, di) => {
+        if (ds.label === lbl || ds.label === 'avg__' + lbl) chartInstance.data.datasets[di].hidden = !visible[i];
+      });
+      chartInstance.update();
+      syncStatDim();
+    });
+    controls.appendChild(btn);
+  });
+  const allBtn = document.createElement('button');
+  allBtn.className = 'all-btn';
+  allBtn.textContent = 'Toggle all';
+  allBtn.addEventListener('click', () => {
+    const anyOn = visible.some(v => v);
+    uniqueLabels.forEach((_, i) => { visible[i] = !anyOn; });
+    controls.querySelectorAll('.toggle-btn').forEach((b, i) => b.classList.toggle('off', anyOn));
+    chartInstance.data.datasets.forEach((_, di) => { chartInstance.data.datasets[di].hidden = anyOn; });
+    chartInstance.update();
+    syncStatDim();
+  });
+  controls.appendChild(allBtn);
+}
+
+loadData();
 </script>
 </body>
 </html>
