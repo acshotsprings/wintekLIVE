@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinTek LIVE — Chris Campbell</title>
+<link rel="icon" type="image/png" href="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png">
+<meta name="apple-mobile-web-app-title" content="WinTek LIVE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#011E59">
+<style>
+  :root {
+    --navy: #011E59;
+    --navy-dark: #00153f;
+    --navy-light: #1a3a7a;
+    --red: #DD1A1A;
+    --red-dark: #b51414;
+    --white: #ffffff;
+    --offwhite: #f5f7fb;
+    --gray: #6b7280;
+    --gray-light: #e5e7eb;
+    --green: #16a34a;
+    --amber: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--offwhite);
+    color: #111;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+    color: white;
+    padding: 18px 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1400px;
+    margin: 0 auto;
+    gap: 16px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand-logo {
+    width: 52px;
+    height: 52px;
+    background: white;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    flex-shrink: 0;
+  }
+  .brand-logo img { width: 100%; height: auto; }
+  .brand-text h1 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    line-height: 1.1;
+  }
+  .brand-text h1 .red { color: #ff8a8a; }
+  .brand-text .sub {
+    font-size: 0.78rem;
+    opacity: 0.85;
+    margin-top: 2px;
+  }
+  .nav-links {
+    display: flex;
+    gap: 8px;
+  }
+  .nav-links a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.12);
+    transition: background 0.15s;
+  }
+  .nav-links a:hover { background: rgba(255,255,255,0.22); }
+  .nav-links a.active { background: var(--red); }
+
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    color: var(--gray);
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 1.8s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.3); }
+  }
+  .refresh-btn {
+    margin-left: auto;
+    background: var(--navy);
+    color: white;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .refresh-btn:hover { background: var(--navy-light); }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: white;
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border-left: 4px solid var(--navy);
+    position: relative;
+  }
+  .kpi.red { border-left-color: var(--red); }
+  .kpi.green { border-left-color: var(--green); }
+  .kpi.amber { border-left-color: var(--amber); }
+  .kpi-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--navy);
+    line-height: 1.1;
+  }
+  .kpi-sub {
+    font-size: 0.75rem;
+    color: var(--gray);
+    margin-top: 4px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 768px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: white;
+    border-radius: 10px;
+    padding: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .card h2 {
+    font-size: 0.95rem;
+    color: var(--navy);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+  }
+  .card h2::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    background: var(--red);
+    border-radius: 2px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  th {
+    text-align: left;
+    padding: 8px 10px;
+    background: var(--offwhite);
+    color: var(--navy);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--navy);
+  }
+  td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--gray-light);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--offwhite); }
+
+  .status-pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .s-sold { background: #dcfce7; color: #166534; }
+  .s-not-sold { background: #fee2e2; color: #991b1b; }
+  .s-ng { background: #fef3c7; color: #92400e; }
+  .s-no-show { background: #f3f4f6; color: #4b5563; }
+  .s-cancelled { background: #ddd6fe; color: #5b21b6; }
+  .s-rescheduled { background: #cffafe; color: #155e75; }
+  .s-one-leg { background: #fce7f3; color: #9f1239; }
+  .s-default { background: var(--gray-light); color: var(--gray); }
+
+  .priorTenure {
+    background: linear-gradient(135deg, #f5f7fb 0%, #e5e7eb 100%);
+    border: 1px solid var(--gray-light);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+  .priorTenure h3 {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--gray);
+    margin-bottom: 10px;
+    font-weight: 700;
+  }
+  .priorTenure .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+  .priorTenure .stat {
+    flex: 1 1 auto;
+    min-width: 100px;
+  }
+  .priorTenure .stat .num {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--navy);
+  }
+  .priorTenure .stat .lbl {
+    font-size: 0.7rem;
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray);
+  }
+  .empty-state .big {
+    font-size: 2.5rem;
+    margin-bottom: 8px;
+  }
+  .loading {
+    text-align: center;
+    padding: 30px;
+    color: var(--gray);
+    font-size: 0.85rem;
+  }
+  .error {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+  footer {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--gray);
+    font-size: 0.75rem;
+  }
+  footer .stripes {
+    display: inline-block;
+    margin: 0 6px;
+    color: var(--red);
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-row">
+    <div class="brand">
+      <div class="brand-logo">
+        <img src="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png" alt="WinTek USA">
+      </div>
+      <div class="brand-text">
+        <h1>WIN<span class="red">TEK</span> LIVE</h1>
+        <div class="sub">Chris Campbell · Jackson, MS</div>
+      </div>
+    </div>
+    <div class="nav-links">
+      <a href="index.html" class="active">Dashboard</a>
+      <a href="map.html">Map</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="status-bar">
+    <div class="live-dot"></div>
+    <span id="last-updated">Loading…</span>
+    <button class="refresh-btn" onclick="loadAll()">Refresh</button>
+  </div>
+
+  <div class="priorTenure">
+    <h3>🇺🇸 Prior Tenure — WinChoice 2025–2026</h3>
+    <div class="row">
+      <div class="stat"><div class="num">$36,540.68</div><div class="lbl">Income Earned</div></div>
+      <div class="stat"><div class="num">20</div><div class="lbl">Sales Closed</div></div>
+      <div class="stat"><div class="num">27</div><div class="lbl">Combined (incl. NG)</div></div>
+      <div class="stat"><div class="num">20.2%</div><div class="lbl">Sold Close Rate</div></div>
+      <div class="stat"><div class="num">20/20 ✓</div><div class="lbl">Books Read Goal</div></div>
+    </div>
+  </div>
+
+  <div id="kpis" class="kpi-grid">
+    <div class="loading">Loading WinTek data…</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>Recent Appointments</h2>
+      <div id="recent-table"><div class="loading">Loading…</div></div>
+    </div>
+    <div class="card">
+      <h2>Status Breakdown</h2>
+      <div id="status-table"><div class="loading">Loading…</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>All Sold Deals (YTD)</h2>
+    <div id="sold-table"><div class="loading">Loading…</div></div>
+  </div>
+</main>
+
+<footer>
+  <div>WinTek LIVE Dashboard <span class="stripes">★</span> Built for Chris Campbell <span class="stripes">★</span> Pulls live from WinTek Sales Sheet</div>
+  <div style="margin-top:6px;opacity:0.6;">© 2026 — Patriotic palette: Navy #011E59 · Red #DD1A1A</div>
+</footer>
+
+<script>
+const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxMi6s-OLmDwK8UMfBbnvy_a8_VhbrEwHACDl8hYKiiYZClaFqOxDmm0jvAdiL2NbixUQ/exec';
+
+const STATUS_CLASS = {
+  'Sold': 's-sold',
+  'Not Sold': 's-not-sold',
+  'NG': 's-ng',
+  'No Show': 's-no-show',
+  'Cancelled': 's-cancelled',
+  'Rescheduled': 's-rescheduled',
+  'One Leg': 's-one-leg',
+  'No Sale - Follow Up': 's-not-sold',
+  'Rescinded': 's-cancelled'
+};
+
+function statusPill(status) {
+  if (!status) return '';
+  const cls = STATUS_CLASS[status] || 's-default';
+  return `<span class="status-pill ${cls}">${status}</span>`;
+}
+
+function fmtMoney(n) {
+  if (!n && n !== 0) return '';
+  const num = typeof n === 'string' ? parseFloat(n) : n;
+  if (isNaN(num) || num === 0) return '';
+  return '$' + num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt)) return d;
+    return (dt.getMonth()+1) + '/' + dt.getDate() + '/' + dt.getFullYear();
+  } catch(e) { return d; }
+}
+
+async function fetchSheet(tab, range) {
+  const url = `${ENDPOINT}?tab=${encodeURIComponent(tab)}&range=${encodeURIComponent(range)}`;
+  const r = await fetch(url);
+  return await r.json();
+}
+
+async function loadAll() {
+  document.getElementById('last-updated').textContent = 'Updating…';
+  try {
+    const data = await fetchSheet('MASTER', 'A1:V500');
+    if (data.error) throw new Error(data.error);
+    renderDashboard(data);
+    const now = new Date();
+    document.getElementById('last-updated').textContent = 
+      'Live · Updated ' + now.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
+  } catch(e) {
+    document.getElementById('kpis').innerHTML = 
+      `<div class="error">Could not load data: ${e.message}</div>`;
+    document.getElementById('last-updated').textContent = 'Error loading';
+  }
+}
+
+function renderDashboard(data) {
+  if (!data || data.length < 2) {
+    document.getElementById('kpis').innerHTML = 
+      '<div class="empty-state"><div class="big">🚀</div><div>Fresh start! No appointments logged yet.</div><div style="margin-top:6px;font-size:0.8rem;">Book your first WinTek appointment and it shows up here.</div></div>';
+    document.getElementById('recent-table').innerHTML = '<div class="empty-state">No data yet.</div>';
+    document.getElementById('status-table').innerHTML = '<div class="empty-state">No data yet.</div>';
+    document.getElementById('sold-table').innerHTML = '<div class="empty-state">No data yet.</div>';
+    return;
+  }
+  const rows = data.slice(1).filter(r => r[0] || r[2]); // has date or customer
+  const sold = rows.filter(r => r[7] === 'Sold');
+  const ng = rows.filter(r => r[7] === 'NG');
+  const totalSale = sold.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+  const totalCommission = sold.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
+  const totalWindows = sold.reduce((s,r) => s + (parseFloat(r[12])||0), 0);
+  const soldWindows = sold.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+  const closeRate = rows.length ? (sold.length / rows.length * 100).toFixed(1) : 0;
+  const avgPpu = soldWindows ? (totalSale / soldWindows) : 0;
+
+  // KPIs
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi green">
+      <div class="kpi-label">Income YTD</div>
+      <div class="kpi-value">${fmtMoney(totalCommission) || '$0.00'}</div>
+      <div class="kpi-sub">Toward $250K goal</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Sales Closed</div>
+      <div class="kpi-value">${sold.length}</div>
+      <div class="kpi-sub">${ng.length} NG · ${sold.length + ng.length} combined</div>
+    </div>
+    <div class="kpi red">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">${fmtMoney(totalSale) || '$0.00'}</div>
+      <div class="kpi-sub">${soldWindows} windows sold</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kpi-label">Close Rate</div>
+      <div class="kpi-value">${closeRate}%</div>
+      <div class="kpi-sub">${rows.length} appts pitched</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Avg PPU</div>
+      <div class="kpi-value">${fmtMoney(avgPpu) || '$0.00'}</div>
+      <div class="kpi-sub">Per window</div>
+    </div>
+  `;
+
+  // Recent appointments (last 8)
+  const recent = rows.slice(-8).reverse();
+  document.getElementById('recent-table').innerHTML = recent.length ? `
+    <table>
+      <thead><tr><th>Date</th><th>Customer</th><th>City</th><th>Status</th></tr></thead>
+      <tbody>${recent.map(r => `
+        <tr>
+          <td>${fmtDate(r[0])}</td>
+          <td>${r[2] || ''}</td>
+          <td>${r[4] || ''}</td>
+          <td>${statusPill(r[7])}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  ` : '<div class="empty-state">No appointments yet.</div>';
+
+  // Status breakdown
+  const statusCounts = {};
+  rows.forEach(r => {
+    const s = r[7] || 'Pending';
+    statusCounts[s] = (statusCounts[s] || 0) + 1;
+  });
+  const sortedStatuses = Object.entries(statusCounts).sort((a,b) => b[1]-a[1]);
+  document.getElementById('status-table').innerHTML = sortedStatuses.length ? `
+    <table>
+      <thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead>
+      <tbody>${sortedStatuses.map(([s,c]) => `
+        <tr>
+          <td>${statusPill(s)}</td>
+          <td>${c}</td>
+          <td>${(c/rows.length*100).toFixed(1)}%</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  ` : '<div class="empty-state">No status data yet.</div>';
+
+  // Sold deals
+  document.getElementById('sold-table').innerHTML = sold.length ? `
+    <table>
+      <thead><tr><th>Date</th><th>Customer</th><th>City</th><th>Total Sale</th><th>Windows</th><th>Commission</th></tr></thead>
+      <tbody>${sold.slice().reverse().map(r => `
+        <tr>
+          <td>${fmtDate(r[0])}</td>
+          <td>${r[2] || ''}</td>
+          <td>${r[4] || ''}</td>
+          <td>${fmtMoney(r[8])}</td>
+          <td>${r[13] || ''}</td>
+          <td>${fmtMoney(r[10])}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  ` : '<div class="empty-state"><div class="big">🎯</div><div>First sale awaits!</div></div>';
+}
+
+loadAll();
+setInterval(loadAll, 60000); // refresh every 60s
+</script>
+</body>
+</html>
