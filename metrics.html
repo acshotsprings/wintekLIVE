@@ -66,6 +66,15 @@
   .chart-wrap { position: relative; width: 100%; height: 360px; }
   .chart-wrap.small { height: 280px; }
 
+  /* Toggle controls (match WinChoice/index style) */
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; }
+  .toggle-btn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 999px; border: 1.5px solid; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s, transform 0.1s; background: transparent; font-family: 'DM Sans', sans-serif; }
+  .toggle-btn:hover { transform: translateY(-1px); }
+  .toggle-btn:active { transform: scale(0.97); }
+  .toggle-btn.off { opacity: 0.28; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .all-btn { background: transparent; border: 1.5px solid #ccc; color: #888; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; }
+
   /* Heat map */
   .heatmap-scroll { overflow-x: auto; padding-bottom: 8px; }
   .heatmap { display: table; border-collapse: separate; border-spacing: 4px; }
@@ -154,6 +163,7 @@
   <!-- Phase averages bar chart -->
   <div class="card">
     <div class="card-title">★ Phase Averages (All Appointments)</div>
+    <div class="controls" id="avg-controls"></div>
     <div class="chart-wrap small"><canvas id="avg-chart"></canvas></div>
   </div>
 
@@ -166,6 +176,7 @@
         <button class="refresh-btn" onclick="loadData()">Refresh</button>
       </div>
     </div>
+    <div class="controls" id="trajectory-controls"></div>
     <div class="chart-wrap"><canvas id="trajectory-chart"></canvas></div>
   </div>
 
@@ -260,6 +271,7 @@ async function loadData() {
 
     // Sort by date ascending for trajectory
     rows.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+    window._metricsRows = rows;
 
     renderSummaryStats(rows);
     renderLatestScoreboard(rows);
@@ -326,6 +338,10 @@ function renderLatestScoreboard(rows) {
   });
 }
 
+// Toggle state — one entry per phase, all on by default
+let avgVisible = PHASES.map(() => true);
+let trajectoryVisible = PHASES.map(() => true).concat([true]); // +1 for Overall
+
 function renderAvgChart(rows) {
   if (avgChartInstance) avgChartInstance.destroy();
   const labels = PHASES.map(p => p.short + ' · ' + p.name);
@@ -335,15 +351,19 @@ function renderAvgChart(rows) {
   });
   const colors = avgs.map(scoreHex);
 
+  // Apply visibility — set value to NaN for hidden phases so the bar collapses
+  const displayData = avgs.map((v, i) => avgVisible[i] ? parseFloat(v.toFixed(2)) : null);
+  const displayColors = colors.map((c, i) => avgVisible[i] ? c : '#e5e7eb');
+
   avgChartInstance = new Chart(document.getElementById('avg-chart'), {
     type: 'bar',
     data: {
       labels,
       datasets: [{
         label: 'Average Score',
-        data: avgs.map(v => parseFloat(v.toFixed(2))),
-        backgroundColor: colors,
-        borderColor: colors,
+        data: displayData,
+        backgroundColor: displayColors,
+        borderColor: displayColors,
         borderWidth: 2,
         borderRadius: 6
       }]
@@ -359,7 +379,7 @@ function renderAvgChart(rows) {
           bodyColor: '#d1cfc8',
           padding: 12,
           callbacks: {
-            label: ctx => 'Average: ' + ctx.parsed.y.toFixed(2) + ' / 10'
+            label: ctx => ctx.parsed.y === null ? 'Hidden' : 'Average: ' + ctx.parsed.y.toFixed(2) + ' / 10'
           }
         }
       },
@@ -369,6 +389,38 @@ function renderAvgChart(rows) {
       }
     }
   });
+
+  buildAvgControls();
+}
+
+function buildAvgControls() {
+  const container = document.getElementById('avg-controls');
+  container.innerHTML = '';
+  PHASES.forEach((p, i) => {
+    const color = PHASE_COLORS[i];
+    const btn = document.createElement('button');
+    btn.className = 'toggle-btn' + (avgVisible[i] ? '' : ' off');
+    btn.style.borderColor = color;
+    btn.style.color = color;
+    btn.innerHTML = '<span class="dot" style="background:' + color + '"></span>' + p.short;
+    btn.title = p.name;
+    btn.addEventListener('click', () => {
+      avgVisible[i] = !avgVisible[i];
+      btn.classList.toggle('off', !avgVisible[i]);
+      // Re-render with current rows cached on window
+      if (window._metricsRows) renderAvgChart(window._metricsRows);
+    });
+    container.appendChild(btn);
+  });
+  const allBtn = document.createElement('button');
+  allBtn.className = 'all-btn';
+  allBtn.textContent = 'Toggle all';
+  allBtn.addEventListener('click', () => {
+    const anyOn = avgVisible.some(v => v);
+    avgVisible = avgVisible.map(() => !anyOn);
+    if (window._metricsRows) renderAvgChart(window._metricsRows);
+  });
+  container.appendChild(allBtn);
 }
 
 function renderTrajectoryChart(rows) {
@@ -387,7 +439,8 @@ function renderTrajectoryChart(rows) {
     pointRadius: 5,
     pointHoverRadius: 7,
     tension: 0.3,
-    fill: false
+    fill: false,
+    hidden: !trajectoryVisible[i]
   }));
 
   // Also add Overall as a thicker dashed line
@@ -404,7 +457,8 @@ function renderTrajectoryChart(rows) {
     pointRadius: 6,
     pointHoverRadius: 8,
     tension: 0.3,
-    fill: false
+    fill: false,
+    hidden: !trajectoryVisible[7]
   });
 
   trajectoryChartInstance = new Chart(document.getElementById('trajectory-chart'), {
@@ -414,10 +468,7 @@ function renderTrajectoryChart(rows) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { font: { size: 11, family: 'DM Mono' }, color: '#444', padding: 10, usePointStyle: true }
-        },
+        legend: { display: false },
         tooltip: {
           mode: 'index',
           intersect: false,
@@ -434,6 +485,61 @@ function renderTrajectoryChart(rows) {
       interaction: { mode: 'index', intersect: false }
     }
   });
+
+  buildTrajectoryControls();
+}
+
+function buildTrajectoryControls() {
+  const container = document.getElementById('trajectory-controls');
+  container.innerHTML = '';
+  // Phase buttons
+  PHASES.forEach((p, i) => {
+    const color = PHASE_COLORS[i];
+    const btn = document.createElement('button');
+    btn.className = 'toggle-btn' + (trajectoryVisible[i] ? '' : ' off');
+    btn.style.borderColor = color;
+    btn.style.color = color;
+    btn.innerHTML = '<span class="dot" style="background:' + color + '"></span>' + p.short;
+    btn.title = p.name;
+    btn.addEventListener('click', () => {
+      trajectoryVisible[i] = !trajectoryVisible[i];
+      btn.classList.toggle('off', !trajectoryVisible[i]);
+      if (trajectoryChartInstance) {
+        trajectoryChartInstance.data.datasets[i].hidden = !trajectoryVisible[i];
+        trajectoryChartInstance.update();
+      }
+    });
+    container.appendChild(btn);
+  });
+  // Overall button
+  const overallBtn = document.createElement('button');
+  overallBtn.className = 'toggle-btn' + (trajectoryVisible[7] ? '' : ' off');
+  overallBtn.style.borderColor = '#011E59';
+  overallBtn.style.color = '#011E59';
+  overallBtn.innerHTML = '<span class="dot" style="background:#011E59"></span>Overall';
+  overallBtn.addEventListener('click', () => {
+    trajectoryVisible[7] = !trajectoryVisible[7];
+    overallBtn.classList.toggle('off', !trajectoryVisible[7]);
+    if (trajectoryChartInstance) {
+      trajectoryChartInstance.data.datasets[7].hidden = !trajectoryVisible[7];
+      trajectoryChartInstance.update();
+    }
+  });
+  container.appendChild(overallBtn);
+  // Toggle all
+  const allBtn = document.createElement('button');
+  allBtn.className = 'all-btn';
+  allBtn.textContent = 'Toggle all';
+  allBtn.addEventListener('click', () => {
+    const anyOn = trajectoryVisible.some(v => v);
+    trajectoryVisible = trajectoryVisible.map(() => !anyOn);
+    container.querySelectorAll('.toggle-btn').forEach((b, i) => b.classList.toggle('off', !trajectoryVisible[i]));
+    if (trajectoryChartInstance) {
+      trajectoryChartInstance.data.datasets.forEach((ds, i) => { ds.hidden = !trajectoryVisible[i]; });
+      trajectoryChartInstance.update();
+    }
+  });
+  container.appendChild(allBtn);
 }
 
 function renderHeatmap(rows) {
