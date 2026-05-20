@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinTek LIVE — Training Metrics</title>
+<link rel="icon" type="image/png" href="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png">
+<meta name="theme-color" content="#011E59">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #011E59;
+    --navy-dark: #00153f;
+    --navy-light: #1a3a7a;
+    --red: #DD1A1A;
+    --red-dark: #b51414;
+    --green: #1D9E75;
+    --yellow: #EAB308;
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --border: #e2e0d8;
+    --text: #1a1917;
+    --muted: #6b6860;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 1.5rem; }
+
+  header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--navy); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-logo { width: 50px; height: 50px; background: white; border: 2px solid var(--navy); border-radius: 10px; display: flex; align-items: center; justify-content: center; padding: 4px; flex-shrink: 0; }
+  .brand-logo img { width: 100%; }
+  .brand-text h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: var(--navy); }
+  .brand-text h1 .red { color: var(--red); }
+  .brand-text .sub { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+  .nav-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .nav-pill { padding: 7px 16px; border-radius: 999px; font-size: 13px; font-weight: 500; font-family: 'DM Sans', sans-serif; text-decoration: none; transition: all 0.15s; }
+  .nav-pill.active { background: var(--red); color: #fff; }
+  .nav-pill.inactive { background: var(--navy); color: #fff; }
+  .nav-pill.inactive:hover { background: var(--navy-light); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.85rem; font-family: 'DM Mono', monospace; }
+
+  /* Latest scoreboard */
+  .scoreboard-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1rem; flex-wrap: wrap; gap: 8px; }
+  .scoreboard-customer { font-size: 18px; font-weight: 600; color: var(--navy); }
+  .scoreboard-date { font-size: 12px; font-family: 'DM Mono', monospace; color: var(--muted); }
+  .scoreboard-overall { display: flex; align-items: baseline; gap: 8px; }
+  .scoreboard-overall .num { font-size: 32px; font-weight: 700; color: var(--navy); }
+  .scoreboard-overall .lbl { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); text-transform: uppercase; }
+
+  .phase-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .phase-box { border-radius: 10px; padding: 14px; text-align: center; border: 2px solid; color: white; transition: transform 0.15s; }
+  .phase-box:hover { transform: translateY(-2px); }
+  .phase-box .phase-label { font-size: 10px; font-family: 'DM Mono', monospace; opacity: 0.9; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; }
+  .phase-box .phase-name { font-size: 11px; font-weight: 500; margin-bottom: 8px; line-height: 1.2; min-height: 28px; display: flex; align-items: center; justify-content: center; }
+  .phase-box .phase-score { font-size: 24px; font-weight: 700; line-height: 1; }
+  .phase-box.green { background: var(--green); border-color: var(--green); }
+  .phase-box.yellow { background: var(--yellow); border-color: var(--yellow); color: #4a3a00; }
+  .phase-box.red { background: var(--red); border-color: var(--red); }
+  .phase-box.gray { background: #9ca3af; border-color: #9ca3af; }
+
+  /* Charts */
+  .chart-wrap { position: relative; width: 100%; height: 360px; }
+  .chart-wrap.small { height: 280px; }
+
+  /* Heat map */
+  .heatmap-scroll { overflow-x: auto; padding-bottom: 8px; }
+  .heatmap { display: table; border-collapse: separate; border-spacing: 4px; }
+  .heatmap-row { display: table-row; }
+  .heatmap-cell { display: table-cell; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; text-align: center; min-width: 60px; color: white; }
+  .heatmap-cell.header { background: var(--navy); color: white; font-size: 10px; font-family: 'DM Mono', monospace; letter-spacing: 0.3px; }
+  .heatmap-cell.label { background: #f3f4f6; color: var(--text); text-align: left; font-weight: 500; min-width: 140px; }
+
+  /* Coaching notes */
+  .coaching-card { background: linear-gradient(135deg, #fff8e6 0%, #fef3c7 100%); border-left: 4px solid var(--red); border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; }
+  .coaching-card .customer { font-weight: 600; color: var(--navy); font-size: 14px; margin-bottom: 4px; }
+  .coaching-card .date { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); margin-bottom: 8px; }
+  .coaching-card .notes { font-size: 13px; line-height: 1.5; color: #78350f; }
+
+  /* Stats row */
+  .summary-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1.5rem; }
+  .summary-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; flex: 1; min-width: 140px; }
+  .summary-stat .val { font-size: 26px; font-weight: 700; line-height: 1; margin-bottom: 4px; color: var(--navy); }
+  .summary-stat .lbl { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .empty-state { background: var(--surface); border: 2px dashed var(--border); border-radius: 12px; text-align: center; padding: 3rem 1rem; color: var(--muted); }
+  .empty-state .big { font-size: 3rem; margin-bottom: 8px; }
+  .empty-state .msg { font-size: 16px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+  .empty-state .sub { font-size: 12px; font-family: 'DM Mono', monospace; }
+
+  .loading { text-align: center; padding: 3rem; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 13px; }
+  .error { background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 14px 18px; font-size: 13px; color: #991b1b; margin-bottom: 1rem; }
+
+  .refresh-btn { background: var(--red); border: none; color: white; border-radius: 999px; padding: 6px 16px; font-size: 13px; font-family: 'DM Sans', sans-serif; cursor: pointer; font-weight: 500; }
+  .refresh-btn:hover { background: var(--red-dark); }
+
+  footer { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; text-align: center; }
+  footer .stripe { color: var(--red); margin: 0 5px; }
+  #last-updated { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">
+      <img src="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png" alt="WinTek USA">
+    </div>
+    <div class="brand-text">
+      <h1>WIN<span class="red">TEK</span> LIVE</h1>
+      <div class="sub">Training Metrics · Chris Campbell · 2026</div>
+    </div>
+  </div>
+  <div class="nav-links">
+    <a href="index.html" class="nav-pill inactive">Trends</a>
+    <a href="stats.html" class="nav-pill inactive">Live Stats</a>
+    <a href="map.html" class="nav-pill inactive">Territory Map</a>
+    <a href="metrics.html" class="nav-pill active">● Metrics</a>
+  </div>
+</header>
+
+<div id="error-box" class="error" style="display:none;"></div>
+<div id="loading" class="loading">Loading training metrics…</div>
+<div id="empty" class="empty-state" style="display:none;">
+  <div class="big">📊</div>
+  <div class="msg">No appointments scored yet</div>
+  <div class="sub">Run an appointment audit and the METRICS will populate here.</div>
+</div>
+
+<div id="main" style="display:none;">
+
+  <!-- Summary stats -->
+  <div class="summary-stats" id="summary-stats"></div>
+
+  <!-- Latest appointment scoreboard -->
+  <div class="card">
+    <div class="card-title">★ Latest Appointment Scoreboard</div>
+    <div class="scoreboard-header">
+      <div>
+        <div class="scoreboard-customer" id="latest-customer">—</div>
+        <div class="scoreboard-date" id="latest-date">—</div>
+      </div>
+      <div class="scoreboard-overall">
+        <span class="num" id="latest-overall">—</span>
+        <span class="lbl">Overall / 10</span>
+      </div>
+    </div>
+    <div class="phase-grid" id="phase-grid"></div>
+  </div>
+
+  <!-- Phase averages bar chart -->
+  <div class="card">
+    <div class="card-title">★ Phase Averages (All Appointments)</div>
+    <div class="chart-wrap small"><canvas id="avg-chart"></canvas></div>
+  </div>
+
+  <!-- Phase trajectory line chart -->
+  <div class="card">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+      <div class="card-title" style="margin-bottom:0;">★ Phase Trajectory Over Time</div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span id="last-updated"></span>
+        <button class="refresh-btn" onclick="loadData()">Refresh</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="trajectory-chart"></canvas></div>
+  </div>
+
+  <!-- Heat map -->
+  <div class="card">
+    <div class="card-title">★ Heat Map: Appointments × Phases</div>
+    <div class="heatmap-scroll">
+      <div class="heatmap" id="heatmap"></div>
+    </div>
+  </div>
+
+  <!-- Coaching notes -->
+  <div class="card">
+    <div class="card-title">★ Coaching Notes Archive</div>
+    <div id="coaching-notes"></div>
+  </div>
+
+</div>
+
+<footer>
+  Live data <span class="stripe">★</span> WinTek Sales Sheet · METRICS tab <span class="stripe">★</span> Pulled via Apps Script endpoint
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// WinTek LIVE — Training Metrics
+// Data source: WinTek Sales Sheet → METRICS tab
+// ═══════════════════════════════════════════════════════════
+
+const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxMi6s-OLmDwK8UMfBbnvy_a8_VhbrEwHACDl8hYKiiYZClaFqOxDmm0jvAdiL2NbixUQ/exec';
+const METRICS_TAB = 'METRICS';
+
+// Phase definitions — short names for charts, full names for tooltips
+const PHASES = [
+  { col: 2,  short: 'P1', name: 'Entry & Warm-Up' },
+  { col: 3,  short: 'P2', name: 'Discovery & 5 P\'s' },
+  { col: 4,  short: 'P3', name: 'Walk-Around' },
+  { col: 5,  short: 'P4', name: 'In-Home Presentation' },
+  { col: 6,  short: 'P5', name: 'Demo' },
+  { col: 7,  short: 'P6', name: 'Bridge & Objections' },
+  { col: 8,  short: 'P7', name: 'Price & Close' },
+];
+// Column indices in METRICS tab:
+// 0=Date, 1=Customer, 2-8=Phases 1-7, 9=Overall, 10=Coaching Notes
+
+const PHASE_COLORS = ['#1D9E75','#3B82F6','#8B5CF6','#EC4899','#F97316','#EAB308','#DD1A1A'];
+
+let avgChartInstance = null, trajectoryChartInstance = null;
+
+function scoreColor(score) {
+  if (score === null || score === undefined || isNaN(score)) return 'gray';
+  if (score >= 8) return 'green';
+  if (score >= 5) return 'yellow';
+  return 'red';
+}
+
+function scoreHex(score) {
+  if (score === null || score === undefined || isNaN(score)) return '#9ca3af';
+  if (score >= 8) return '#1D9E75';
+  if (score >= 5) return '#EAB308';
+  return '#DD1A1A';
+}
+
+function formatDate(d) {
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return (dt.getMonth()+1) + '/' + dt.getDate() + '/' + String(dt.getFullYear()).slice(2);
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('empty').style.display = 'none';
+  document.getElementById('error-box').style.display = 'none';
+
+  const url = `${ENDPOINT}?tab=${encodeURIComponent(METRICS_TAB)}&range=A1:K500`;
+
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    if (!Array.isArray(json)) throw new Error('Unexpected response shape');
+
+    // Skip header row; keep rows with date + customer name
+    const rows = json.slice(1).filter(r => r[0] && r[1]);
+
+    if (rows.length === 0) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('empty').style.display = 'block';
+      return;
+    }
+
+    // Sort by date ascending for trajectory
+    rows.sort((a, b) => new Date(a[0]) - new Date(b[0]));
+
+    renderSummaryStats(rows);
+    renderLatestScoreboard(rows);
+    renderAvgChart(rows);
+    renderTrajectoryChart(rows);
+    renderHeatmap(rows);
+    renderCoachingNotes(rows);
+
+    document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-box').style.display = 'block';
+    document.getElementById('error-box').textContent = 'Error loading metrics: ' + e.message;
+  }
+}
+
+function renderSummaryStats(rows) {
+  const container = document.getElementById('summary-stats');
+  const overalls = rows.map(r => parseFloat(r[9])).filter(n => !isNaN(n));
+  const avg = overalls.length ? (overalls.reduce((a,b)=>a+b,0) / overalls.length).toFixed(1) : '—';
+
+  // Best & worst phase across all appointments
+  const phaseAvgs = PHASES.map(p => {
+    const vals = rows.map(r => parseFloat(r[p.col])).filter(n => !isNaN(n));
+    return { phase: p, avg: vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0 };
+  });
+  const sorted = [...phaseAvgs].sort((a,b)=>b.avg-a.avg);
+  const best = sorted[0];
+  const worst = sorted[sorted.length-1];
+
+  container.innerHTML = `
+    <div class="summary-stat"><div class="val">${rows.length}</div><div class="lbl">Appointments Audited</div></div>
+    <div class="summary-stat"><div class="val" style="color:${scoreHex(parseFloat(avg))}">${avg}</div><div class="lbl">Avg Overall Score</div></div>
+    <div class="summary-stat"><div class="val" style="color:var(--green); font-size:18px;">${best.phase.short} · ${best.avg.toFixed(1)}</div><div class="lbl">Best Phase: ${best.phase.name}</div></div>
+    <div class="summary-stat"><div class="val" style="color:var(--red); font-size:18px;">${worst.phase.short} · ${worst.avg.toFixed(1)}</div><div class="lbl">Weakest Phase: ${worst.phase.name}</div></div>
+  `;
+}
+
+function renderLatestScoreboard(rows) {
+  const latest = rows[rows.length - 1];
+  document.getElementById('latest-customer').textContent = latest[1];
+  document.getElementById('latest-date').textContent = formatDate(latest[0]);
+  const overall = parseFloat(latest[9]);
+  const overallEl = document.getElementById('latest-overall');
+  overallEl.textContent = isNaN(overall) ? '—' : overall.toFixed(1);
+  overallEl.style.color = scoreHex(overall);
+
+  const grid = document.getElementById('phase-grid');
+  grid.innerHTML = '';
+  PHASES.forEach(p => {
+    const score = parseFloat(latest[p.col]);
+    const colorClass = scoreColor(score);
+    const display = isNaN(score) ? '—' : score.toFixed(1);
+    const box = document.createElement('div');
+    box.className = 'phase-box ' + colorClass;
+    box.innerHTML = `
+      <div class="phase-label">${p.short}</div>
+      <div class="phase-name">${p.name}</div>
+      <div class="phase-score">${display}</div>
+    `;
+    grid.appendChild(box);
+  });
+}
+
+function renderAvgChart(rows) {
+  if (avgChartInstance) avgChartInstance.destroy();
+  const labels = PHASES.map(p => p.short + ' · ' + p.name);
+  const avgs = PHASES.map(p => {
+    const vals = rows.map(r => parseFloat(r[p.col])).filter(n => !isNaN(n));
+    return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+  });
+  const colors = avgs.map(scoreHex);
+
+  avgChartInstance = new Chart(document.getElementById('avg-chart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Average Score',
+        data: avgs.map(v => parseFloat(v.toFixed(2))),
+        backgroundColor: colors,
+        borderColor: colors,
+        borderWidth: 2,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#011E59',
+          titleColor: '#fff',
+          bodyColor: '#d1cfc8',
+          padding: 12,
+          callbacks: {
+            label: ctx => 'Average: ' + ctx.parsed.y.toFixed(2) + ' / 10'
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11, family: 'DM Mono' }, color: '#888' } },
+        y: { beginAtZero: true, max: 10, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { stepSize: 2, font: { size: 11, family: 'DM Mono' }, color: '#888' } }
+      }
+    }
+  });
+}
+
+function renderTrajectoryChart(rows) {
+  if (trajectoryChartInstance) trajectoryChartInstance.destroy();
+  const labels = rows.map(r => formatDate(r[0]) + ' · ' + r[1].split(' ')[0]);
+
+  const datasets = PHASES.map((p, i) => ({
+    label: p.short + ' · ' + p.name,
+    data: rows.map(r => {
+      const v = parseFloat(r[p.col]);
+      return isNaN(v) ? null : v;
+    }),
+    borderColor: PHASE_COLORS[i],
+    backgroundColor: PHASE_COLORS[i] + '20',
+    borderWidth: 2.5,
+    pointRadius: 5,
+    pointHoverRadius: 7,
+    tension: 0.3,
+    fill: false
+  }));
+
+  // Also add Overall as a thicker dashed line
+  datasets.push({
+    label: 'Overall',
+    data: rows.map(r => {
+      const v = parseFloat(r[9]);
+      return isNaN(v) ? null : v;
+    }),
+    borderColor: '#011E59',
+    backgroundColor: 'transparent',
+    borderWidth: 3,
+    borderDash: [8, 4],
+    pointRadius: 6,
+    pointHoverRadius: 8,
+    tension: 0.3,
+    fill: false
+  });
+
+  trajectoryChartInstance = new Chart(document.getElementById('trajectory-chart'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { font: { size: 11, family: 'DM Mono' }, color: '#444', padding: 10, usePointStyle: true }
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+          backgroundColor: '#011E59',
+          titleColor: '#fff',
+          bodyColor: '#d1cfc8',
+          padding: 12
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11, family: 'DM Mono' }, color: '#888', maxRotation: 45, minRotation: 45 } },
+        y: { beginAtZero: true, max: 10, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { stepSize: 2, font: { size: 11, family: 'DM Mono' }, color: '#888' } }
+      },
+      interaction: { mode: 'index', intersect: false }
+    }
+  });
+}
+
+function renderHeatmap(rows) {
+  const container = document.getElementById('heatmap');
+  container.innerHTML = '';
+
+  // Header row
+  const headerRow = document.createElement('div');
+  headerRow.className = 'heatmap-row';
+  const corner = document.createElement('div');
+  corner.className = 'heatmap-cell header';
+  corner.textContent = 'APPOINTMENT';
+  headerRow.appendChild(corner);
+  PHASES.forEach(p => {
+    const cell = document.createElement('div');
+    cell.className = 'heatmap-cell header';
+    cell.textContent = p.short;
+    cell.title = p.name;
+    headerRow.appendChild(cell);
+  });
+  const overallHeader = document.createElement('div');
+  overallHeader.className = 'heatmap-cell header';
+  overallHeader.textContent = 'OVR';
+  headerRow.appendChild(overallHeader);
+  container.appendChild(headerRow);
+
+  // Data rows (most recent first)
+  const reversed = [...rows].reverse();
+  reversed.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'heatmap-row';
+
+    const label = document.createElement('div');
+    label.className = 'heatmap-cell label';
+    label.innerHTML = `<div style="font-weight:600">${r[1]}</div><div style="font-size:10px; font-family:'DM Mono', monospace; color:#888;">${formatDate(r[0])}</div>`;
+    row.appendChild(label);
+
+    PHASES.forEach(p => {
+      const score = parseFloat(r[p.col]);
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-cell';
+      cell.style.background = scoreHex(score);
+      cell.textContent = isNaN(score) ? '—' : score.toFixed(1);
+      cell.title = p.name + ': ' + (isNaN(score) ? 'N/A' : score.toFixed(1));
+      row.appendChild(cell);
+    });
+
+    const overall = parseFloat(r[9]);
+    const ovrCell = document.createElement('div');
+    ovrCell.className = 'heatmap-cell';
+    ovrCell.style.background = scoreHex(overall);
+    ovrCell.style.fontWeight = '700';
+    ovrCell.textContent = isNaN(overall) ? '—' : overall.toFixed(1);
+    row.appendChild(ovrCell);
+
+    container.appendChild(row);
+  });
+}
+
+function renderCoachingNotes(rows) {
+  const container = document.getElementById('coaching-notes');
+  container.innerHTML = '';
+  const reversed = [...rows].reverse();
+  reversed.forEach(r => {
+    const notes = r[10];
+    if (!notes || !notes.toString().trim()) return;
+    const card = document.createElement('div');
+    card.className = 'coaching-card';
+    card.innerHTML = `
+      <div class="customer">${r[1]}</div>
+      <div class="date">${formatDate(r[0])} · Overall ${parseFloat(r[9]).toFixed(1)} / 10</div>
+      <div class="notes">${notes}</div>
+    `;
+    container.appendChild(card);
+  });
+  if (!container.children.length) {
+    container.innerHTML = '<div style="color:var(--muted); font-size:13px; font-style:italic; text-align:center; padding:20px;">No coaching notes yet.</div>';
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
