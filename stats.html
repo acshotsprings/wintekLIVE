@@ -478,6 +478,11 @@ function renderDashboard(data) {
   const closeRate = runs.length ? (closes.length / runs.length * 100).toFixed(1) : 0;
 
   document.getElementById('kpis').innerHTML = `
+    <div class="kpi red">
+      <div class="kpi-label">Total Revenue</div>
+      <div class="kpi-value">${fmtMoney(totalSale) || '$0.00'}</div>
+      <div class="kpi-sub">${fundedSoldWindows} windows sold</div>
+    </div>
     <div class="kpi green">
       <div class="kpi-label">Income YTD</div>
       <div class="kpi-value">${fmtMoney(totalCommission) || '$0.00'}</div>
@@ -487,11 +492,6 @@ function renderDashboard(data) {
       <div class="kpi-label">Sales Closed</div>
       <div class="kpi-value">${closes.length}</div>
       <div class="kpi-sub">${ng.length} NG · ${closes.length} combined (incl. rescind)</div>
-    </div>
-    <div class="kpi red">
-      <div class="kpi-label">Total Revenue</div>
-      <div class="kpi-value">${fmtMoney(totalSale) || '$0.00'}</div>
-      <div class="kpi-sub">${fundedSoldWindows} windows sold</div>
     </div>
     <div class="kpi amber">
       <div class="kpi-label">Close Rate</div>
