@@ -65,33 +65,6 @@
   .mini-overall .mini-label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--muted); letter-spacing: 0.3px; }
   .mini-overall .mini-score { font-size: 24px; font-weight: 700; line-height: 1.2; color: var(--navy); }
 
-  /* Expandable per-phase coaching column under the scoreboard (additive) */
-  .mw2-colhead { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-family: 'DM Mono', monospace; margin: 1.1rem 0 0.5rem; }
-  .mw2-phase { border: 1px solid var(--border); border-radius: 9px; margin: 6px 0; overflow: hidden; }
-  .mw2-phase.open { box-shadow: 0 6px 16px rgba(1,30,89,0.08); }
-  .mw2-prow { display: flex; align-items: center; gap: 11px; padding: 9px 12px; cursor: pointer; user-select: none; }
-  .mw2-prow:hover { background: #fafbfc; }
-  .mw2-tag { font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 600; color: #fff; width: 30px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .mw2-name { flex: 1; font-size: 14px; font-weight: 600; color: var(--text); }
-  .mw2-score { font-family: 'DM Mono', monospace; font-size: 16px; font-weight: 700; width: 42px; text-align: right; }
-  .mw2-chev { color: var(--muted); font-size: 11px; transition: transform 0.2s; }
-  .mw2-phase.open .mw2-chev { transform: rotate(90deg); }
-  .mw2-phase.green { border-left: 4px solid var(--green); } .mw2-phase.green .mw2-tag { background: var(--green); } .mw2-phase.green .mw2-score { color: var(--green); }
-  .mw2-phase.yellow { border-left: 4px solid var(--yellow); } .mw2-phase.yellow .mw2-tag { background: var(--yellow); } .mw2-phase.yellow .mw2-score { color: #a07c00; }
-  .mw2-phase.red { border-left: 4px solid var(--red); } .mw2-phase.red .mw2-tag { background: var(--red); } .mw2-phase.red .mw2-score { color: var(--red); }
-  .mw2-phase.gray { border-left: 4px solid #9ca3af; } .mw2-phase.gray .mw2-tag { background: #9ca3af; } .mw2-phase.gray .mw2-score { color: #6b7280; }
-  .mw2-pdetail { max-height: 0; overflow: hidden; transition: max-height 0.28s ease; background: #fbfcfd; }
-  .mw2-phase.open .mw2-pdetail { max-height: 240px; border-top: 1px solid var(--border); }
-  .mw2-pdetail-inner { padding: 12px 14px; font-size: 13px; line-height: 1.55; color: var(--text); }
-  .mw2-pdetail-inner b { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
-  .mw2-note { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-  .mw2-note-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; cursor: pointer; background: #fafbfc; user-select: none; }
-  .mw2-note-head span.t { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy); font-weight: 600; }
-  .mw2-note.open .mw2-note-head .mw2-chev { transform: rotate(90deg); }
-  .mw2-note-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-  .mw2-note.open .mw2-note-body { max-height: 1200px; }
-  .mw2-note-body p { padding: 13px 14px; font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
-
   .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1.5rem; }
   .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; min-width: 110px; transition: opacity 0.2s; }
   .stat.dimmed { opacity: 0.3; }
@@ -171,7 +144,6 @@
     <a href="metrics.html" class="metrics-widget-link">View full metrics →</a>
   </div>
   <div class="mini-phase-grid" id="mw-grid"></div>
-  <div id="mw-detail"></div>
 </div>
 
 <div id="error-box" class="error" style="display:none;"></div>
@@ -384,48 +356,11 @@ async function loadMetricsWidget() {
     overallDiv.innerHTML = `<div class="mini-label">OVERALL</div><div class="mini-score" style="color:${isNaN(overall) ? '#9ca3af' : (overall >= 8 ? '#1D9E75' : overall >= 5 ? '#EAB308' : '#DD1A1A')}">${isNaN(overall) ? '—' : overall.toFixed(1)}</div>`;
     grid.appendChild(overallDiv);
 
-    renderMetricsDetail(latest);
-
     document.getElementById('metrics-widget').style.display = 'block';
   } catch (e) {
     // Silently fail — the widget just won't show
     console.warn('Metrics widget unavailable:', e.message);
   }
-}
-
-// Phase display names for the expandable column under the scoreboard
-const PHASE_NAMES = ['Entry & Warm-Up','Discovery & 5 P\u2019s','Walk-Around','In-Home Presentation','Demo','Bridge & Objections','Price & Close'];
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-// Renders the clickable per-phase column + coaching notes, from the same latest METRICS row
-function renderMetricsDetail(latest) {
-  const host = document.getElementById('mw-detail');
-  if (!host) return;
-  let html = '<div class="mw2-colhead">Tap a phase for its score \u00b7 full coaching below</div>';
-  PHASES.forEach((p, i) => {
-    const score = parseFloat(latest[p.col]);
-    const cc = scoreColor(score);
-    const sv = isNaN(score) ? '\u2014' : score.toFixed(1);
-    html += '<div class="mw2-phase ' + cc + '">'
-      + '<div class="mw2-prow"><div class="mw2-tag">' + p.short + '</div>'
-      + '<div class="mw2-name">' + PHASE_NAMES[i] + '</div>'
-      + '<div class="mw2-score">' + sv + '</div><div class="mw2-chev">&#9654;</div></div>'
-      + '<div class="mw2-pdetail"><div class="mw2-pdetail-inner"><b>' + PHASE_NAMES[i]
-      + '</b> &middot; scored ' + sv + ' / 10. Coaching for this appointment is in the notes below.</div></div></div>';
-  });
-  const notes = (latest[10] || '').toString().trim();
-  html += '<div class="mw2-note open" id="mw2-note"><div class="mw2-note-head"><span class="t">Coaching Notes</span><span class="mw2-chev">&#9654;</span></div>'
-    + '<div class="mw2-note-body"><p>' + (notes ? escapeHtml(notes) : 'No coaching notes recorded for this appointment.') + '</p></div></div>';
-  host.innerHTML = html;
-
-  host.querySelectorAll('.mw2-phase').forEach(el => {
-    el.querySelector('.mw2-prow').addEventListener('click', () => el.classList.toggle('open'));
-  });
-  const nc = document.getElementById('mw2-note');
-  if (nc) nc.querySelector('.mw2-note-head').addEventListener('click', () => nc.classList.toggle('open'));
 }
 
 async function loadData() {
