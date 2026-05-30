@@ -89,8 +89,23 @@
   .mw2-note-head span.t { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy); font-weight: 600; }
   .mw2-note.open .mw2-note-head .mw2-chev { transform: rotate(90deg); }
   .mw2-note-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-  .mw2-note.open .mw2-note-body { max-height: 1200px; }
+  .mw2-note.open .mw2-note-body { max-height: 1600px; }
   .mw2-note-body p { padding: 13px 14px; font-size: 13px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+
+  /* Per-customer collapsible drill-down */
+  .mw2-cust { border: 1px solid var(--border); border-radius: 10px; margin: 8px 0; overflow: hidden; }
+  .mw2-cust.open { box-shadow: 0 6px 16px rgba(1,30,89,0.08); }
+  .mw2-cust-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; user-select: none; }
+  .mw2-cust-head:hover { background: #fafbfc; }
+  .mw2-cust-date { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); width: 64px; flex-shrink: 0; }
+  .mw2-cust-name { flex: 1; font-size: 15px; font-weight: 700; color: var(--navy); }
+  .mw2-cust-ov { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 700; width: 52px; text-align: right; }
+  .mw2-cust-chev { color: var(--muted); font-size: 12px; transition: transform 0.2s; flex-shrink: 0; }
+  .mw2-cust.open .mw2-cust-chev { transform: rotate(90deg); }
+  .mw2-cust-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+  .mw2-cust.open .mw2-cust-body { max-height: 5000px; border-top: 1px solid var(--border); }
+  .mw2-cust-body-inner { padding: 14px; }
+  .mw2-cust-body-inner .mw2-colhead { margin-top: 1rem; }
 
   .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1.5rem; }
   .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; min-width: 110px; transition: opacity 0.2s; }
@@ -161,17 +176,18 @@
   📜 <strong>Career Legacy (Pre-WinTek):</strong> WinChoice 2025–2026 closed at $36,540.68 · 20 sold · 27 combined · 20.2% close rate · 20/20 books read ✓ — historical reference only, not counted in WinTek totals below.
 </div>
 
-<!-- Metrics widget — latest appointment scoreboard -->
+<!-- Metrics widget — phase averages (top) + per-customer drill-down (below) -->
 <div id="metrics-widget" class="metrics-widget" style="display:none;">
   <div class="metrics-widget-header">
     <div>
-      <div class="metrics-widget-title">★ Latest Training Score</div>
-      <div class="metrics-widget-meta"><span class="customer" id="mw-customer">—</span> · <span id="mw-date">—</span></div>
+      <div class="metrics-widget-title">★ Training Scoreboard — Phase Averages</div>
+      <div class="metrics-widget-meta"><span id="mw-summary">—</span></div>
     </div>
     <a href="metrics.html" class="metrics-widget-link">View full metrics →</a>
   </div>
   <div class="mini-phase-grid" id="mw-grid"></div>
-  <div id="mw-detail"></div>
+  <div class="mw2-colhead">By appointment — tap a customer to expand</div>
+  <div id="mw-customers"></div>
 </div>
 
 <div id="error-box" class="error" style="display:none;"></div>
@@ -360,31 +376,9 @@ async function loadMetricsWidget() {
     if (rows.length === 0) return;
 
     rows.sort((a, b) => new Date(a[0]) - new Date(b[0]));
-    const latest = rows[rows.length - 1];
 
-    document.getElementById('mw-customer').textContent = latest[1];
-    document.getElementById('mw-date').textContent = formatShortDate(latest[0]);
-
-    const grid = document.getElementById('mw-grid');
-    grid.innerHTML = '';
-    PHASES.forEach(p => {
-      const score = parseFloat(latest[p.col]);
-      const colorClass = scoreColor(score);
-      const display = isNaN(score) ? '—' : score.toFixed(1);
-      const box = document.createElement('div');
-      box.className = 'mini-phase-box ' + colorClass;
-      box.innerHTML = `<div class="mini-label">${p.short}</div><div class="mini-score">${display}</div>`;
-      grid.appendChild(box);
-    });
-
-    // Overall
-    const overall = parseFloat(latest[9]);
-    const overallDiv = document.createElement('div');
-    overallDiv.className = 'mini-overall';
-    overallDiv.innerHTML = `<div class="mini-label">OVERALL</div><div class="mini-score" style="color:${isNaN(overall) ? '#9ca3af' : (overall >= 8 ? '#1D9E75' : overall >= 5 ? '#EAB308' : '#DD1A1A')}">${isNaN(overall) ? '—' : overall.toFixed(1)}</div>`;
-    grid.appendChild(overallDiv);
-
-    renderMetricsDetail(latest);
+    renderPhaseAverages(rows);
+    renderCustomerList(rows);
 
     document.getElementById('metrics-widget').style.display = 'block';
   } catch (e) {
@@ -399,33 +393,82 @@ const PHASE_NAMES = ['Entry & Warm-Up','Discovery & 5 P\u2019s','Walk-Around','I
 function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+function overallTextColor(v) {
+  return isNaN(v) ? '#9ca3af' : (v >= 8 ? '#1D9E75' : v >= 5 ? '#EAB308' : '#DD1A1A');
+}
 
-// Renders the clickable per-phase column + coaching notes, from the same latest METRICS row
-function renderMetricsDetail(latest) {
-  const host = document.getElementById('mw-detail');
-  if (!host) return;
-  let html = '<div class="mw2-colhead">Tap a phase for its score \u00b7 full coaching below</div>';
-  PHASES.forEach((p, i) => {
-    const score = parseFloat(latest[p.col]);
-    const cc = scoreColor(score);
-    const sv = isNaN(score) ? '\u2014' : score.toFixed(1);
-    html += '<div class="mw2-phase ' + cc + '">'
-      + '<div class="mw2-prow"><div class="mw2-tag">' + p.short + '</div>'
-      + '<div class="mw2-name">' + PHASE_NAMES[i] + '</div>'
-      + '<div class="mw2-score">' + sv + '</div><div class="mw2-chev">&#9654;</div></div>'
-      + '<div class="mw2-pdetail"><div class="mw2-pdetail-inner"><b>' + PHASE_NAMES[i]
-      + '</b> &middot; scored ' + sv + ' / 10. Coaching for this appointment is in the notes below.</div></div></div>';
+// TOP: average each phase + overall across ALL audited appointments
+function renderPhaseAverages(rows) {
+  const grid = document.getElementById('mw-grid');
+  grid.innerHTML = '';
+  PHASES.forEach(p => {
+    const vals = rows.map(r => parseFloat(r[p.col])).filter(v => !isNaN(v));
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : NaN;
+    const box = document.createElement('div');
+    box.className = 'mini-phase-box ' + scoreColor(avg);
+    box.innerHTML = `<div class="mini-label">${p.short}</div><div class="mini-score">${isNaN(avg)?'—':avg.toFixed(1)}</div>`;
+    grid.appendChild(box);
   });
-  const notes = (latest[10] || '').toString().trim();
-  html += '<div class="mw2-note open" id="mw2-note"><div class="mw2-note-head"><span class="t">Coaching Notes</span><span class="mw2-chev">&#9654;</span></div>'
+  const ovs = rows.map(r => parseFloat(r[9])).filter(v => !isNaN(v));
+  const ovAvg = ovs.length ? ovs.reduce((a,b)=>a+b,0)/ovs.length : NaN;
+  const overallDiv = document.createElement('div');
+  overallDiv.className = 'mini-overall';
+  overallDiv.innerHTML = `<div class="mini-label">OVERALL</div><div class="mini-score" style="color:${overallTextColor(ovAvg)}">${isNaN(ovAvg)?'—':ovAvg.toFixed(1)}</div>`;
+  grid.appendChild(overallDiv);
+
+  document.getElementById('mw-summary').textContent = rows.length + ' appointments audited \u00b7 averaged';
+}
+
+// Build one customer's inner layout: scoreboard boxes + clickable phase column + coaching
+function buildCustomerInner(r) {
+  let boxes = '<div class="mini-phase-grid">';
+  PHASES.forEach(p => {
+    const s = parseFloat(r[p.col]); const sv = isNaN(s)?'—':s.toFixed(1);
+    boxes += '<div class="mini-phase-box ' + scoreColor(s) + '"><div class="mini-label">' + p.short + '</div><div class="mini-score">' + sv + '</div></div>';
+  });
+  const ov = parseFloat(r[9]);
+  boxes += '<div class="mini-overall"><div class="mini-label">OVERALL</div><div class="mini-score" style="color:' + overallTextColor(ov) + '">' + (isNaN(ov)?'—':ov.toFixed(1)) + '</div></div></div>';
+
+  let col = '<div class="mw2-colhead">Tap a phase for its score \u00b7 full coaching below</div>';
+  PHASES.forEach((p,i) => {
+    const s = parseFloat(r[p.col]); const sv = isNaN(s)?'—':s.toFixed(1);
+    col += '<div class="mw2-phase ' + scoreColor(s) + '"><div class="mw2-prow"><div class="mw2-tag">' + p.short + '</div>'
+      + '<div class="mw2-name">' + PHASE_NAMES[i] + '</div><div class="mw2-score">' + sv + '</div><div class="mw2-chev">&#9654;</div></div>'
+      + '<div class="mw2-pdetail"><div class="mw2-pdetail-inner"><b>' + PHASE_NAMES[i] + '</b> &middot; scored ' + sv + ' / 10. Coaching for this appointment is in the notes below.</div></div></div>';
+  });
+  const notes = (r[10] || '').toString().trim();
+  col += '<div class="mw2-note"><div class="mw2-note-head"><span class="t">Coaching Notes</span><span class="mw2-chev">&#9654;</span></div>'
     + '<div class="mw2-note-body"><p>' + (notes ? escapeHtml(notes) : 'No coaching notes recorded for this appointment.') + '</p></div></div>';
-  host.innerHTML = html;
+  return boxes + col;
+}
 
-  host.querySelectorAll('.mw2-phase').forEach(el => {
-    el.querySelector('.mw2-prow').addEventListener('click', () => el.classList.toggle('open'));
+// BELOW: one collapsible per customer (newest first)
+function renderCustomerList(rows) {
+  const host = document.getElementById('mw-customers');
+  host.innerHTML = '';
+  rows.slice().reverse().forEach(r => {
+    const ov = parseFloat(r[9]);
+    const cust = document.createElement('div');
+    cust.className = 'mw2-cust';
+    cust.innerHTML =
+      '<div class="mw2-cust-head">'
+      + '<div class="mw2-cust-date">' + formatShortDate(r[0]) + '</div>'
+      + '<div class="mw2-cust-name">' + escapeHtml(r[1]) + '</div>'
+      + '<div class="mw2-cust-ov" style="color:' + overallTextColor(ov) + '">' + (isNaN(ov)?'—':ov.toFixed(1)) + '</div>'
+      + '<div class="mw2-cust-chev">&#9654;</div></div>'
+      + '<div class="mw2-cust-body"><div class="mw2-cust-body-inner">' + buildCustomerInner(r) + '</div></div>';
+    host.appendChild(cust);
   });
-  const nc = document.getElementById('mw2-note');
-  if (nc) nc.querySelector('.mw2-note-head').addEventListener('click', () => nc.classList.toggle('open'));
+
+  host.querySelectorAll('.mw2-cust').forEach(c => {
+    c.querySelector('.mw2-cust-head').addEventListener('click', () => c.classList.toggle('open'));
+  });
+  host.querySelectorAll('.mw2-phase').forEach(el => {
+    el.querySelector('.mw2-prow').addEventListener('click', (e) => { e.stopPropagation(); el.classList.toggle('open'); });
+  });
+  host.querySelectorAll('.mw2-note').forEach(nc => {
+    nc.querySelector('.mw2-note-head').addEventListener('click', (e) => { e.stopPropagation(); nc.classList.toggle('open'); });
+  });
 }
 
 async function loadData() {
