@@ -133,9 +133,12 @@
 
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 14px;
     margin-bottom: 20px;
+  }
+  @media (max-width: 600px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
   }
   .kpi {
     background: white;
@@ -157,7 +160,7 @@
     margin-bottom: 6px;
   }
   .kpi-value {
-    font-size: 1.55rem;
+    font-size: 1.4rem;
     font-weight: 800;
     color: var(--navy);
     line-height: 1.1;
