@@ -497,15 +497,15 @@ function renderDashboard(data) {
       <div class="kpi-value">${closes.length}</div>
       <div class="kpi-sub">${ng.length} NG · ${closes.length} combined (incl. rescind)</div>
     </div>
-    <div class="kpi amber">
-      <div class="kpi-label">Close Rate</div>
-      <div class="kpi-value">${closeRate}%</div>
-      <div class="kpi-sub">${runs.length} appts run</div>
-    </div>
     <div class="kpi green">
       <div class="kpi-label">Pitch %</div>
       <div class="kpi-value">${pitchPct}%</div>
       <div class="kpi-sub">${pitched.length} of ${rows.length} pitched</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kpi-label">Close Rate</div>
+      <div class="kpi-value">${closeRate}%</div>
+      <div class="kpi-sub">${runs.length} appts run</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Avg PPU (Funded)</div>
