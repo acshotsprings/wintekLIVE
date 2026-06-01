@@ -133,7 +133,7 @@
 
   .kpi-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 14px;
     margin-bottom: 20px;
   }
@@ -462,6 +462,10 @@ function renderDashboard(data) {
   const runs = rows.filter(r => RUN_STATUSES.includes(r[7]));
   const funded = rows.filter(r => FUNDED_STATUSES.includes(r[7]));
   
+  // Pitch metrics — Pitch column is V (index 21), derived Yes/No from Status on the sheet
+  const pitched = rows.filter(r => String(r[21]).trim().toLowerCase() === 'yes');
+  const pitchPct = rows.length ? (pitched.length / rows.length * 100).toFixed(1) : 0;
+  
   // Funded metrics (actual money paid)
   const totalCommission = funded.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
   const totalSale = funded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
@@ -497,6 +501,11 @@ function renderDashboard(data) {
       <div class="kpi-label">Close Rate</div>
       <div class="kpi-value">${closeRate}%</div>
       <div class="kpi-sub">${runs.length} appts run</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">Pitch %</div>
+      <div class="kpi-value">${pitchPct}%</div>
+      <div class="kpi-sub">${pitched.length} of ${rows.length} pitched</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Avg PPU (Funded)</div>
