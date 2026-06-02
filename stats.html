@@ -489,6 +489,7 @@ function renderDashboard(data) {
   const firstDate = dateVals.length ? new Date(Math.min(...dateVals.map(d => d.getTime()))) : new Date();
   const weeksElapsed = Math.max(1, Math.ceil((Date.now() - firstDate.getTime()) / (7*24*60*60*1000)));
   const weeklyAvgIncome = totalCommission / weeksElapsed;
+  const onPaceYear = weeklyAvgIncome * 52;
 
   document.getElementById('kpis').innerHTML = `
     <div class="kpi red">
@@ -501,6 +502,7 @@ function renderDashboard(data) {
       <div class="kpi-value">${fmtMoney(totalCommission) || '$0.00'}</div>
       <div class="kpi-sub">Toward $250K goal</div>
       <div class="kpi-sub" style="font-weight:700;color:var(--navy);margin-top:4px;">${fmtMoney(weeklyAvgIncome)}/wk avg</div>
+      <div class="kpi-sub" style="margin-top:2px;">${fmtMoney(onPaceYear)} on pace / yr</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Sales Closed</div>
