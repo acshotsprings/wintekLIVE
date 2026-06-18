@@ -65,6 +65,14 @@
   .mini-overall .mini-label { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--muted); letter-spacing: 0.3px; }
   .mini-overall .mini-score { font-size: 24px; font-weight: 700; line-height: 1.2; color: var(--navy); }
 
+  /* Trend arrows on the phase scoreboard — recent half of appointments vs earlier half */
+  .mini-phase-box .mini-trend { font-size: 9px; font-family: 'DM Mono', monospace; font-weight: 600; margin-top: 3px; line-height: 1; letter-spacing: 0.2px; }
+  .mini-overall .mini-trend { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 600; margin-top: 3px; line-height: 1; }
+  .mini-trend.flat { opacity: 0.75; }
+  .mini-overall .mini-trend.up { color: var(--green); }
+  .mini-overall .mini-trend.down { color: var(--red); }
+  .mini-overall .mini-trend.flat { color: var(--muted); }
+
   /* Expandable per-phase coaching column under the scoreboard (additive) */
   .mw2-colhead { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-family: 'DM Mono', monospace; margin: 1.1rem 0 0.5rem; }
   .mw2-phase { border: 1px solid var(--border); border-radius: 9px; margin: 6px 0; overflow: hidden; }
@@ -397,23 +405,56 @@ function overallTextColor(v) {
   return isNaN(v) ? '#9ca3af' : (v >= 8 ? '#1D9E75' : v >= 5 ? '#EAB308' : '#DD1A1A');
 }
 
+// ── Trend direction for the scoreboard ──────────────────────────────
+// Each phase arrow compares the average of the most recent half of the
+// audited appointments against the earlier half. The big number in each
+// box is still the all-time average; the arrow just shows which way the
+// recent appointments are pushing it, and by how much.
+const TREND_FLAT_THRESHOLD = 0.2; // points; gaps smaller than this read as "flat" so you're not chasing noise
+
+function computeTrend(vals) {
+  // vals = scores in chronological order (oldest first); NaNs already removed
+  if (!vals || vals.length < 2) return null; // not enough history to trend yet
+  const n = vals.length;
+  const split = Math.floor(n / 2);
+  const earlier = vals.slice(0, split);   // older appointments
+  const recent  = vals.slice(split);      // newer appointments (keeps the odd one out)
+  const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const eAvg = mean(earlier), rAvg = mean(recent);
+  const delta = rAvg - eAvg;
+  let dir = 'flat';
+  if (delta >= TREND_FLAT_THRESHOLD) dir = 'up';
+  else if (delta <= -TREND_FLAT_THRESHOLD) dir = 'down';
+  return { dir, delta, earlier: eAvg, recent: rAvg };
+}
+
+function trendBadge(trend) {
+  if (!trend) return '<div class="mini-trend flat" title="Not enough history to trend yet">\u2013 new</div>';
+  const glyph = trend.dir === 'up' ? '\u25B2' : trend.dir === 'down' ? '\u25BC' : '\u2013';
+  const txt = trend.dir === 'flat' ? 'flat' : (trend.delta > 0 ? '+' : '') + trend.delta.toFixed(1);
+  const tip = 'Recent half avg ' + trend.recent.toFixed(1) + ' vs earlier half avg ' + trend.earlier.toFixed(1);
+  return '<div class="mini-trend ' + trend.dir + '" title="' + tip + '">' + glyph + ' ' + txt + '</div>';
+}
+
 // TOP: average each phase + overall across ALL audited appointments
 function renderPhaseAverages(rows) {
   const grid = document.getElementById('mw-grid');
   grid.innerHTML = '';
   PHASES.forEach(p => {
-    const vals = rows.map(r => parseFloat(r[p.col])).filter(v => !isNaN(v));
+    const vals = rows.map(r => parseFloat(r[p.col])).filter(v => !isNaN(v)); // chronological order
     const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : NaN;
+    const trend = computeTrend(vals);
     const box = document.createElement('div');
     box.className = 'mini-phase-box ' + scoreColor(avg);
-    box.innerHTML = `<div class="mini-label">${p.short}</div><div class="mini-score">${isNaN(avg)?'—':avg.toFixed(1)}</div>`;
+    box.innerHTML = `<div class="mini-label">${p.short}</div><div class="mini-score">${isNaN(avg)?'—':avg.toFixed(1)}</div>${trendBadge(trend)}`;
     grid.appendChild(box);
   });
   const ovs = rows.map(r => parseFloat(r[9])).filter(v => !isNaN(v));
   const ovAvg = ovs.length ? ovs.reduce((a,b)=>a+b,0)/ovs.length : NaN;
+  const ovTrend = computeTrend(ovs);
   const overallDiv = document.createElement('div');
   overallDiv.className = 'mini-overall';
-  overallDiv.innerHTML = `<div class="mini-label">OVERALL</div><div class="mini-score" style="color:${overallTextColor(ovAvg)}">${isNaN(ovAvg)?'—':ovAvg.toFixed(1)}</div>`;
+  overallDiv.innerHTML = `<div class="mini-label">OVERALL</div><div class="mini-score" style="color:${overallTextColor(ovAvg)}">${isNaN(ovAvg)?'—':ovAvg.toFixed(1)}</div>${trendBadge(ovTrend)}`;
   grid.appendChild(overallDiv);
 
   document.getElementById('mw-summary').textContent = rows.length + ' appointments audited \u00b7 averaged';
