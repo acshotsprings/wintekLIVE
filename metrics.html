@@ -70,6 +70,9 @@
   .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; }
   .toggle-btn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 999px; border: 1.5px solid; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s, transform 0.1s; background: transparent; font-family: 'DM Sans', sans-serif; }
   .toggle-btn:hover { transform: translateY(-1px); }
+  .ph-txt { display: inline-flex; flex-direction: column; line-height: 1.05; text-align: left; }
+  .ph-short { font-weight: 600; font-size: 13px; }
+  .ph-name { font-size: 9px; font-weight: 500; opacity: 0.72; white-space: nowrap; text-transform: none; letter-spacing: 0.02em; }
   .toggle-btn:active { transform: scale(0.97); }
   .toggle-btn.off { opacity: 0.28; }
   .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
@@ -128,6 +131,7 @@
     <a href="stats.html" class="nav-pill inactive">Live Stats</a>
     <a href="map.html" class="nav-pill inactive">Territory Map</a>
     <a href="metrics.html" class="nav-pill active">● Metrics</a>
+    <a href="rilla-stats.html" class="nav-pill inactive">Rilla Stats</a>
   </div>
 </header>
 
@@ -402,7 +406,7 @@ function buildAvgControls() {
     btn.className = 'toggle-btn' + (avgVisible[i] ? '' : ' off');
     btn.style.borderColor = color;
     btn.style.color = color;
-    btn.innerHTML = '<span class="dot" style="background:' + color + '"></span>' + p.short;
+    btn.innerHTML = '<span class="dot" style="background:' + color + '"></span><span class="ph-txt"><span class="ph-short">' + p.short + '</span><span class="ph-name">' + p.name + '</span></span>';
     btn.title = p.name;
     btn.addEventListener('click', () => {
       avgVisible[i] = !avgVisible[i];
@@ -499,7 +503,7 @@ function buildTrajectoryControls() {
     btn.className = 'toggle-btn' + (trajectoryVisible[i] ? '' : ' off');
     btn.style.borderColor = color;
     btn.style.color = color;
-    btn.innerHTML = '<span class="dot" style="background:' + color + '"></span>' + p.short;
+    btn.innerHTML = '<span class="dot" style="background:' + color + '"></span><span class="ph-txt"><span class="ph-short">' + p.short + '</span><span class="ph-name">' + p.name + '</span></span>';
     btn.title = p.name;
     btn.addEventListener('click', () => {
       trajectoryVisible[i] = !trajectoryVisible[i];
