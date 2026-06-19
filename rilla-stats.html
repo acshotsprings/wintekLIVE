@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinTek LIVE — Rilla Stats</title>
+<link rel="icon" type="image/png" href="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png">
+<meta name="apple-mobile-web-app-title" content="WinTek LIVE">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#011E59">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #011E59; --navy-dark: #00153f; --navy-light: #1a3a7a;
+    --red: #DD1A1A; --red-dark: #b51414;
+    --white: #ffffff; --offwhite: #f5f7fb; --gray: #6b7280; --gray-light: #e5e7eb;
+    --green: #16a34a; --amber: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--offwhite); color: #111; -webkit-font-smoothing: antialiased; }
+  header { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%); color: white; padding: 18px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.15); position: sticky; top: 0; z-index: 100; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; max-width: 1400px; margin: 0 auto; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo { width: 52px; height: 52px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 4px; flex-shrink: 0; }
+  .brand-logo img { width: 100%; height: auto; }
+  .brand-text h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: 0.5px; line-height: 1.1; }
+  .brand-text h1 .red { color: #ff8a8a; }
+  .brand-text .sub { font-size: 0.78rem; opacity: 0.85; margin-top: 2px; }
+  .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+  .nav-links a { color: white; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; background: rgba(255,255,255,0.12); transition: background 0.15s; }
+  .nav-links a:hover { background: rgba(255,255,255,0.22); }
+  .nav-links a.active { background: var(--red); }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 20px; }
+  .status-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; color: var(--gray); font-size: 0.82rem; font-weight: 500; }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(1.3);} }
+  .refresh-btn { margin-left: auto; background: var(--navy); color: white; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+  .refresh-btn:hover { background: var(--navy-light); }
+
+  .section-title { font-size: 1rem; color: var(--navy); margin: 4px 0 12px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+  .section-title span.bar { display:inline-block; width:4px; height:18px; background:var(--red); border-radius:2px; }
+
+  /* gauge cards = metric toggles */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 22px; }
+  @media (max-width: 600px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: white; border-radius: 10px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-left: 4px solid var(--navy); cursor: pointer; transition: box-shadow .15s, transform .05s; }
+  .kpi:hover { box-shadow: 0 3px 10px rgba(1,30,89,0.14); }
+  .kpi.active { border-left-color: var(--red); box-shadow: 0 3px 12px rgba(1,30,89,0.18); }
+  .kpi-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--gray); font-weight: 700; margin-bottom: 6px; }
+  .kpi-value { font-size: 1.5rem; font-weight: 800; color: var(--navy); line-height: 1.1; }
+  .kpi-value .unit { font-size: 0.8rem; color: var(--gray); font-weight: 700; margin-left: 2px; }
+  .kpi-delta { font-size: 0.72rem; font-weight: 700; margin-top: 5px; }
+  .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--gray); }
+
+  .card { background: white; border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  .card h2 { font-size: 0.95rem; color: var(--navy); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+  .card h2::before { content:''; width:4px; height:16px; background:var(--red); border-radius:2px; }
+  .goal-note { font-size: 0.8rem; color: var(--gray); margin: 2px 0 12px 12px; }
+  .chart-box { position: relative; height: 360px; }
+  @media (max-width: 600px){ .chart-box{ height:300px; } }
+
+  .legend { display:flex; gap:18px; flex-wrap:wrap; margin:14px 2px 0; font-size:0.78rem; color:var(--gray); }
+  .legend .key { display:inline-flex; align-items:center; gap:7px; }
+  .dot { width:10px; height:10px; border-radius:50%; }
+  .swatch { width:16px; height:3px; border-radius:2px; }
+
+  .filters { display:flex; gap:8px; margin:16px 0 0; flex-wrap:wrap; }
+  .filt { font-size:0.78rem; font-weight:700; background:white; color:var(--gray); border:1px solid var(--gray-light); border-radius:999px; padding:6px 14px; cursor:pointer; }
+  .filt.active { color:white; border-color:var(--navy); background:var(--navy); }
+
+  footer { text-align:center; padding:30px 20px; color:var(--gray); font-size:0.75rem; }
+  footer .stripes { display:inline-block; margin:0 6px; color:var(--red); }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-row">
+    <div class="brand">
+      <div class="brand-logo"><img src="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png" alt="WinTek USA"></div>
+      <div class="brand-text">
+        <h1>WIN<span class="red">TEK</span> LIVE</h1>
+        <div class="sub">Chris Campbell · 2026</div>
+      </div>
+    </div>
+    <div class="nav-links">
+      <a href="index.html">Trends</a>
+      <a href="stats.html">Live Stats</a>
+      <a href="map.html">Map</a>
+      <a href="metrics.html">Metrics</a>
+      <a href="rilla-stats.html" class="active">Rilla Stats</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="status-bar">
+    <div class="live-dot"></div>
+    <span id="src-note">Loading…</span>
+    <button class="refresh-btn" onclick="loadLive(true)">Refresh</button>
+  </div>
+
+  <div class="section-title"><span class="bar"></span>Conversation Analytics — tap a metric to chart it</div>
+  <div class="kpi-grid" id="gauges"></div>
+
+  <div class="card">
+    <h2 id="chartTitle">Talk Ratio (You)</h2>
+    <div class="goal-note" id="chartGoal"></div>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+    <div class="legend">
+      <span class="key"><span class="dot" style="background:var(--green)"></span>Sold</span>
+      <span class="key"><span class="dot" style="background:var(--red)"></span>Not Sold</span>
+      <span class="key"><span class="dot" style="background:var(--amber)"></span>NG / Pending</span>
+      <span class="key"><span class="swatch" style="background:var(--navy)"></span>Running average</span>
+    </div>
+    <div class="filters" id="filters">
+      <button class="filt active" data-f="all">All</button>
+      <button class="filt" data-f="Sold">Sold only</button>
+      <button class="filt" data-f="notsold">Not sold only</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div>Rilla Stats <span class="stripes">★</span> Conversation analytics for Chris Campbell <span class="stripes">★</span> Pulls live from WinTek Sales Sheet · RILLA STATS tab</div>
+  <div style="margin-top:6px;opacity:0.6;">Running average recalculates with every appointment. Lower talk &amp; turn ratio, higher engagement &amp; pauses trend toward closes.</div>
+</footer>
+
+<script>
+const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxMi6s-OLmDwK8UMfBbnvy_a8_VhbrEwHACDl8hYKiiYZClaFqOxDmm0jvAdiL2NbixUQ/exec';
+const TAB = 'RILLA STATS';
+const RANGE = 'A1:AD200';
+
+/* column indices in RILLA STATS tab */
+const COL = { date:0, name:1, status:2, talk:6, cust_talk:7, wpm:8, cust_wpm:9, turn:12, avgturn:13, cust_avgturn:14, mono:15, cust_mono:16, pause:17, q:18, score:26 };
+
+/* fallback snapshot (used if live read fails) */
+let DATA = [
+  {date:"2026-05-19",name:"Ms. Bertha",status:"Sold",talk:77.9,cust_talk:22.1,wpm:169,cust_wpm:159,turn:2.3,avgturn:15.1,cust_avgturn:9.7,mono:6.4,cust_mono:0.8,pause:14,q:217,score:null},
+  {date:"2026-06-02",name:"Joy Stout",status:"Not Sold",talk:87.1,cust_talk:12.9,wpm:182,cust_wpm:192,turn:2.8,avgturn:14.2,cust_avgturn:5.9,mono:4.5,cust_mono:0.3,pause:11,q:225,score:null},
+  {date:"2026-06-17",name:"Stephen Threets",status:"Pending",talk:85.3,cust_talk:14.7,wpm:141,cust_wpm:163,turn:2.2,avgturn:13.8,cust_avgturn:5.2,mono:3.0,cust_mono:1.75,pause:9,q:139,score:null},
+  {date:"2026-06-18",name:"Carol Sheldon",status:"NG",talk:77.0,cust_talk:23.0,wpm:212,cust_wpm:108,turn:2.5,avgturn:20.3,cust_avgturn:15.2,mono:4.51,cust_mono:2.19,pause:12,q:47,score:8.75},
+  {date:"2026-06-18",name:"Larry Roberts",status:"Not Sold",talk:87.3,cust_talk:12.7,wpm:201,cust_wpm:170,turn:2.6,avgturn:16.1,cust_avgturn:6.2,mono:8.0,cust_mono:1.0,pause:7,q:260,score:8.65}
+];
+
+const METRICS = [
+  {key:"talk",label:"Talk Ratio (You)",unit:"%",dir:"down",goal:"Lower = more customer engagement. Your one sold call sat at 77.9%."},
+  {key:"cust_talk",label:"Customer Talk %",unit:"%",dir:"up",goal:"Higher = customer opening up. Sold call: 22.1%."},
+  {key:"turn",label:"Turn Ratio",unit:":1",dir:"down",goal:"Your speaking turns vs theirs. Aim for 2.0 or below."},
+  {key:"cust_avgturn",label:"Customer Avg Turn",unit:"w",dir:"up",goal:"Words per customer turn. Higher means fuller answers."},
+  {key:"pause",label:"Pause Frequency",unit:"",dir:"up",goal:"Strategic silences that hand the floor over. More is better."},
+  {key:"q",label:"Questions Asked",unit:"",dir:"flat",goal:"Volume isn't the goal — whether it opens the customer up is."},
+  {key:"wpm",label:"Your Pace",unit:" wpm",dir:"flat",goal:"Your speaking speed. Measured beats relentless."}
+];
+
+const C = {};
+['--green','--red','--amber','--navy','--gray','--gray-light'].forEach(v=>C[v]=getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+function statusColor(s){ if(s==='Sold')return C['--green']; if(s==='Not Sold'||s==='No Sale - Follow Up')return C['--red']; return C['--amber']; }
+function isNotSold(s){ return s==='Not Sold'||s==='No Sale - Follow Up'; }
+
+let activeMetric='talk', activeFilter='all', chart=null;
+
+function runningAvg(key){ let s=0,o=[]; DATA.forEach((d,i)=>{s+=d[key]; o.push(+(s/(i+1)).toFixed(1));}); return o; }
+function overallAvg(key){ return +(DATA.reduce((a,d)=>a+d[key],0)/DATA.length).toFixed(1); }
+
+function buildGauges(){
+  const host=document.getElementById('gauges'); host.innerHTML='';
+  METRICS.forEach(m=>{
+    const avg=overallAvg(m.key), n=DATA.length;
+    const latest=DATA[n-1][m.key], prev=n>1?DATA[n-2][m.key]:latest, diff=+(latest-prev).toFixed(1);
+    let cls='flat',arrow='→';
+    if(diff>0){arrow='↑'; cls=(m.dir==='up')?'up':(m.dir==='down')?'down':'flat';}
+    else if(diff<0){arrow='↓'; cls=(m.dir==='down')?'up':(m.dir==='up')?'down':'flat';}
+    const el=document.createElement('div');
+    el.className='kpi'+(m.key===activeMetric?' active':'');
+    el.innerHTML=`<div class="kpi-label">${m.label}</div>
+      <div class="kpi-value">${avg}<span class="unit">${m.unit}</span></div>
+      <div class="kpi-delta ${cls}">${arrow} ${Math.abs(diff)}${m.unit} last appt</div>`;
+    el.onclick=()=>{activeMetric=m.key; buildGauges(); render();};
+    host.appendChild(el);
+  });
+}
+
+function render(){
+  const m=METRICS.find(x=>x.key===activeMetric);
+  document.getElementById('chartTitle').textContent=m.label+' — running average';
+  document.getElementById('chartGoal').textContent=m.goal;
+  const labels=DATA.map(d=>d.name.split(' ')[0]+' '+d.date.slice(5));
+  const pts=DATA.map(d=>d[m.key]);
+  const avgLine=runningAvg(m.key);
+  const pointColors=DATA.map(d=>statusColor(d.status));
+  const shown=DATA.map(d=> activeFilter==='all'?true : activeFilter==='Sold'?d.status==='Sold' : isNotSold(d.status));
+  const valData=pts.map((v,i)=>shown[i]?v:null);
+  if(chart) chart.destroy();
+  chart=new Chart(document.getElementById('chart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:m.label,data:valData,spanGaps:false,borderColor:C['--gray-light'],borderWidth:2,pointBackgroundColor:pointColors,pointBorderColor:pointColors,pointRadius:7,pointHoverRadius:9,tension:.25},
+      {label:'Running average',data:avgLine,borderColor:C['--navy'],borderWidth:2,borderDash:[6,4],pointRadius:0,tension:.25}
+    ]},
+    options:{maintainAspectRatio:false,plugins:{legend:{display:false},
+      tooltip:{callbacks:{
+        title:(t)=>DATA[t[0].dataIndex].name+' · '+DATA[t[0].dataIndex].date,
+        label:(c)=>{ if(c.datasetIndex===1)return 'Running avg: '+c.parsed.y+m.unit; const d=DATA[c.dataIndex]; return [m.label+': '+d[m.key]+m.unit,'Status: '+d.status]; }
+      }}},
+      scales:{x:{grid:{color:C['--gray-light']},ticks:{color:C['--gray'],font:{size:11},maxRotation:0}},
+              y:{grid:{color:C['--gray-light']},ticks:{color:C['--gray'],font:{size:11}}}}
+    }
+  });
+}
+
+document.getElementById('filters').addEventListener('click',e=>{
+  if(!e.target.dataset.f)return;
+  activeFilter=e.target.dataset.f;
+  document.querySelectorAll('.filt').forEach(b=>b.classList.toggle('active',b===e.target));
+  render();
+});
+
+async function loadLive(force){
+  try{
+    const url=`${ENDPOINT}?tab=${encodeURIComponent(TAB)}&range=${encodeURIComponent(RANGE)}`;
+    const r=await fetch(url); const rows=await r.json();
+    if(rows&&rows.error) throw new Error(rows.error);
+    if(Array.isArray(rows)&&rows.length>1){
+      const body=rows.slice(1).filter(x=>x[COL.name]);
+      DATA=body.map(x=>({
+        date:String(x[COL.date]).slice(0,10),name:x[COL.name],status:x[COL.status]||'Pending',
+        talk:+x[COL.talk],cust_talk:+x[COL.cust_talk],wpm:+x[COL.wpm],cust_wpm:+x[COL.cust_wpm],
+        turn:+x[COL.turn],avgturn:+x[COL.avgturn],cust_avgturn:+x[COL.cust_avgturn],
+        mono:+x[COL.mono],cust_mono:+x[COL.cust_mono],pause:+x[COL.pause],q:+x[COL.q],
+        score:x[COL.score]?+x[COL.score]:null
+      })).filter(d=>!isNaN(d.talk)).sort((a,b)=>a.date.localeCompare(b.date));
+      const now=new Date();
+      document.getElementById('src-note').textContent='Live · '+DATA.length+' appointments · '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    } else {
+      document.getElementById('src-note').textContent='Built-in snapshot · '+DATA.length+' appointments';
+    }
+  }catch(e){
+    document.getElementById('src-note').textContent='Built-in snapshot (live read unavailable)';
+  }
+  buildGauges(); render();
+}
+
+loadLive();
+setInterval(loadLive, 60000);
+</script>
+</body>
+</html>
