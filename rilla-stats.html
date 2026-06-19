@@ -108,14 +108,14 @@
     <div class="goal-note" id="chartGoal"></div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
     <div class="legend">
-      <span class="key"><span class="dot" style="background:var(--green)"></span>Sold</span>
+      <span class="key"><span class="dot" style="background:var(--green)"></span>Sold / NG</span>
       <span class="key"><span class="dot" style="background:var(--red)"></span>Not Sold</span>
-      <span class="key"><span class="dot" style="background:var(--amber)"></span>NG / Pending</span>
+      <span class="key"><span class="dot" style="background:var(--amber)"></span>Pending</span>
       <span class="key"><span class="swatch" style="background:var(--navy)"></span>Running average</span>
     </div>
     <div class="filters" id="filters">
       <button class="filt active" data-f="all">All</button>
-      <button class="filt" data-f="Sold">Sold only</button>
+      <button class="filt" data-f="Sold">Sold / NG</button>
       <button class="filt" data-f="notsold">Not sold only</button>
     </div>
   </div>
@@ -155,7 +155,7 @@ const METRICS = [
 
 const C = {};
 ['--green','--red','--amber','--navy','--gray','--gray-light'].forEach(v=>C[v]=getComputedStyle(document.documentElement).getPropertyValue(v).trim());
-function statusColor(s){ if(s==='Sold')return C['--green']; if(s==='Not Sold'||s==='No Sale - Follow Up')return C['--red']; return C['--amber']; }
+function statusColor(s){ if(s==='Sold'||s==='NG')return C['--green']; if(s==='Not Sold'||s==='No Sale - Follow Up')return C['--red']; return C['--amber']; }
 function isNotSold(s){ return s==='Not Sold'||s==='No Sale - Follow Up'; }
 
 let activeMetric='talk', activeFilter='all', chart=null;
@@ -189,7 +189,7 @@ function render(){
   const pts=DATA.map(d=>d[m.key]);
   const avgLine=runningAvg(m.key);
   const pointColors=DATA.map(d=>statusColor(d.status));
-  const shown=DATA.map(d=> activeFilter==='all'?true : activeFilter==='Sold'?d.status==='Sold' : isNotSold(d.status));
+  const shown=DATA.map(d=> activeFilter==='all'?true : activeFilter==='Sold'?(d.status==='Sold'||d.status==='NG') : isNotSold(d.status));
   const valData=pts.map((v,i)=>shown[i]?v:null);
   if(chart) chart.destroy();
   chart=new Chart(document.getElementById('chart'),{
