@@ -122,25 +122,35 @@
 </main>
 
 <footer>
-  <div>Rilla Stats <span class="stripes">★</span> Conversation analytics for Chris Campbell <span class="stripes">★</span> Pulls live from WinTek Sales Sheet · RILLA STATS tab</div>
+  <div>Rilla Stats <span class="stripes">&#9733;</span> Conversation analytics for Chris Campbell <span class="stripes">&#9733;</span> Pulls live from WinTek Sales Sheet · RILLA STATS tab</div>
   <div style="margin-top:6px;opacity:0.6;">Running average recalculates with every appointment. Lower talk &amp; turn ratio, higher engagement &amp; pauses trend toward closes.</div>
 </footer>
 
 <script>
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxMi6s-OLmDwK8UMfBbnvy_a8_VhbrEwHACDl8hYKiiYZClaFqOxDmm0jvAdiL2NbixUQ/exec';
 const TAB = 'RILLA STATS';
-const RANGE = 'A1:AD200';
+const RANGE = 'A1:N500';
 
-/* column indices in RILLA STATS tab */
-const COL = { date:0, name:1, status:2, talk:6, cust_talk:7, wpm:8, cust_wpm:9, turn:12, avgturn:13, cust_avgturn:14, mono:15, cust_mono:16, pause:17, q:18, score:26 };
+/* ---- column indices: RILLA STATS tab is 14 cols, A–N, NO status column ----
+   A date | B name | C talk | D cust_talk | E wpm | F cust_wpm | G turn |
+   H avgturn | I cust_avgturn | J mono | K cust_mono | L pause | M q | N score   */
+const COL = { date:0, name:1, talk:2, cust_talk:3, wpm:4, cust_wpm:5, turn:6,
+              avgturn:7, cust_avgturn:8, mono:9, cust_mono:10, pause:11, q:12, score:13 };
 
-/* fallback snapshot (used if live read fails) */
+/* ---- MASTER tab: status lives here, joined onto Rilla rows by name ----
+   A date | B appt_time | C customer_name | ... | H status                   */
+const MASTER_TAB = 'MASTER';
+const MASTER_RANGE = 'A1:U2000';
+const MCOL = { name:2, status:7 };
+
+/* fallback snapshot (used only if the live read fails) */
 let DATA = [
   {date:"2026-05-19",name:"Ms. Bertha",status:"Sold",talk:77.9,cust_talk:22.1,wpm:169,cust_wpm:159,turn:2.3,avgturn:15.1,cust_avgturn:9.7,mono:6.4,cust_mono:0.8,pause:14,q:217,score:null},
   {date:"2026-06-02",name:"Joy Stout",status:"Not Sold",talk:87.1,cust_talk:12.9,wpm:182,cust_wpm:192,turn:2.8,avgturn:14.2,cust_avgturn:5.9,mono:4.5,cust_mono:0.3,pause:11,q:225,score:null},
   {date:"2026-06-17",name:"Stephen Threets",status:"Pending",talk:85.3,cust_talk:14.7,wpm:141,cust_wpm:163,turn:2.2,avgturn:13.8,cust_avgturn:5.2,mono:3.0,cust_mono:1.75,pause:9,q:139,score:null},
   {date:"2026-06-18",name:"Carol Sheldon",status:"NG",talk:77.0,cust_talk:23.0,wpm:212,cust_wpm:108,turn:2.5,avgturn:20.3,cust_avgturn:15.2,mono:4.51,cust_mono:2.19,pause:12,q:47,score:8.75},
-  {date:"2026-06-18",name:"Larry Roberts",status:"Not Sold",talk:87.3,cust_talk:12.7,wpm:201,cust_wpm:170,turn:2.6,avgturn:16.1,cust_avgturn:6.2,mono:8.0,cust_mono:1.0,pause:7,q:260,score:8.65}
+  {date:"2026-06-18",name:"Larry Roberts",status:"Not Sold",talk:87.3,cust_talk:12.7,wpm:201,cust_wpm:170,turn:2.6,avgturn:16.1,cust_avgturn:6.2,mono:8.0,cust_mono:1.0,pause:7,q:260,score:8.65},
+  {date:"2026-06-22",name:"Arlene McDaniel",status:"Sold",talk:78.8,cust_talk:21.2,wpm:190,cust_wpm:197,turn:1.95,avgturn:13.5,cust_avgturn:7.1,mono:4.7,cust_mono:1.4,pause:null,q:395,score:9.04}
 ];
 
 const METRICS = [
@@ -155,27 +165,61 @@ const METRICS = [
 
 const C = {};
 ['--green','--red','--amber','--navy','--gray','--gray-light'].forEach(v=>C[v]=getComputedStyle(document.documentElement).getPropertyValue(v).trim());
-function statusColor(s){ if(s==='Sold'||s==='NG')return C['--green']; if(s==='Not Sold'||s==='No Sale - Follow Up')return C['--red']; return C['--amber']; }
+function statusColor(s){ if(s==='Sold'||s==='NG')return C['--green']; if(isNotSold(s))return C['--red']; return C['--amber']; }
 function isNotSold(s){ return s==='Not Sold'||s==='No Sale - Follow Up'; }
+
+/* ---- helpers ---- */
+function num(v){ if(v===''||v==null) return null; const n=+v; return isNaN(n)?null:n; }
+function normName(s){
+  return String(s||'').toLowerCase()
+    .replace(/[^a-z\s]/g,' ')                 // strip punctuation / digits
+    .replace(/\b(ms|mrs|mr|dr|miss)\b/g,'')   // strip honorifics
+    .replace(/\s+/g,' ').trim();
+}
+function lookupStatus(rillaName, master){
+  const n = normName(rillaName);
+  if(master.exact[n]) return master.exact[n];           // exact normalized match
+  const rt = n.split(' ').filter(t=>t.length>=3);        // token fallback (Ms. Bertha -> Bertha Jones)
+  for(const e of master.list){ if(rt.some(t=>e.tokens.includes(t))) return e.status; }
+  return null;
+}
 
 let activeMetric='talk', activeFilter='all', chart=null;
 
-function runningAvg(key){ let s=0,o=[]; DATA.forEach((d,i)=>{s+=d[key]; o.push(+(s/(i+1)).toFixed(1));}); return o; }
-function overallAvg(key){ return +(DATA.reduce((a,d)=>a+d[key],0)/DATA.length).toFixed(1); }
+/* averages skip blank/null cells (e.g. a missing Pause Freq) instead of counting them as 0 */
+function runningAvg(key){
+  let s=0,c=0,o=[];
+  DATA.forEach(d=>{
+    const v=d[key];
+    if(v!=null && !isNaN(v)){ s+=v; c++; }
+    o.push(c ? +(s/c).toFixed(1) : null);
+  });
+  return o;
+}
+function overallAvg(key){
+  const vals=DATA.map(d=>d[key]).filter(v=>v!=null && !isNaN(v));
+  return vals.length ? +(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1) : 0;
+}
 
 function buildGauges(){
   const host=document.getElementById('gauges'); host.innerHTML='';
   METRICS.forEach(m=>{
-    const avg=overallAvg(m.key), n=DATA.length;
-    const latest=DATA[n-1][m.key], prev=n>1?DATA[n-2][m.key]:latest, diff=+(latest-prev).toFixed(1);
-    let cls='flat',arrow='→';
-    if(diff>0){arrow='↑'; cls=(m.dir==='up')?'up':(m.dir==='down')?'down':'flat';}
-    else if(diff<0){arrow='↓'; cls=(m.dir==='down')?'up':(m.dir==='up')?'down':'flat';}
+    const n=DATA.length;
+    const avg=overallAvg(m.key);
+    const latest = n ? DATA[n-1][m.key] : null;
+    const prev   = n>1 ? DATA[n-2][m.key] : null;
+    let arrow='→', cls='flat', deltaTxt='—';
+    if(latest!=null && prev!=null && !isNaN(latest) && !isNaN(prev)){
+      const diff=+(latest-prev).toFixed(1);
+      if(diff>0){ arrow='↑'; cls=(m.dir==='up')?'up':(m.dir==='down')?'down':'flat'; }
+      else if(diff<0){ arrow='↓'; cls=(m.dir==='down')?'up':(m.dir==='up')?'down':'flat'; }
+      deltaTxt=Math.abs(diff)+m.unit;
+    }
     const el=document.createElement('div');
     el.className='kpi'+(m.key===activeMetric?' active':'');
     el.innerHTML=`<div class="kpi-label">${m.label}</div>
       <div class="kpi-value">${avg}<span class="unit">${m.unit}</span></div>
-      <div class="kpi-delta ${cls}">${arrow} ${Math.abs(diff)}${m.unit} last appt</div>`;
+      <div class="kpi-delta ${cls}">${arrow} ${deltaTxt} last appt</div>`;
     el.onclick=()=>{activeMetric=m.key; buildGauges(); render();};
     host.appendChild(el);
   });
@@ -190,7 +234,7 @@ function render(){
   const avgLine=runningAvg(m.key);
   const pointColors=DATA.map(d=>statusColor(d.status));
   const shown=DATA.map(d=> activeFilter==='all'?true : activeFilter==='Sold'?(d.status==='Sold'||d.status==='NG') : isNotSold(d.status));
-  const valData=pts.map((v,i)=>shown[i]?v:null);
+  const valData=pts.map((v,i)=> (shown[i] && v!=null) ? v : null);
   if(chart) chart.destroy();
   chart=new Chart(document.getElementById('chart'),{
     type:'line',
@@ -201,7 +245,7 @@ function render(){
     options:{maintainAspectRatio:false,plugins:{legend:{display:false},
       tooltip:{callbacks:{
         title:(t)=>DATA[t[0].dataIndex].name+' · '+DATA[t[0].dataIndex].date,
-        label:(c)=>{ if(c.datasetIndex===1)return 'Running avg: '+c.parsed.y+m.unit; const d=DATA[c.dataIndex]; return [m.label+': '+d[m.key]+m.unit,'Status: '+d.status]; }
+        label:(c)=>{ if(c.datasetIndex===1)return 'Running avg: '+c.parsed.y+m.unit; const d=DATA[c.dataIndex]; return [m.label+': '+(d[m.key]==null?'—':d[m.key]+m.unit),'Status: '+d.status]; }
       }}},
       scales:{x:{grid:{color:C['--gray-light']},ticks:{color:C['--gray'],font:{size:11},maxRotation:0}},
               y:{grid:{color:C['--gray-light']},ticks:{color:C['--gray'],font:{size:11}}}}
@@ -216,20 +260,49 @@ document.getElementById('filters').addEventListener('click',e=>{
   render();
 });
 
+async function fetchTab(tab, range){
+  const url=`${ENDPOINT}?tab=${encodeURIComponent(tab)}&range=${encodeURIComponent(range)}`;
+  const r=await fetch(url);
+  return await r.json();
+}
+
 async function loadLive(force){
   try{
-    const url=`${ENDPOINT}?tab=${encodeURIComponent(TAB)}&range=${encodeURIComponent(RANGE)}`;
-    const r=await fetch(url); const rows=await r.json();
-    if(rows&&rows.error) throw new Error(rows.error);
-    if(Array.isArray(rows)&&rows.length>1){
-      const body=rows.slice(1).filter(x=>x[COL.name]);
-      DATA=body.map(x=>({
-        date:String(x[COL.date]).slice(0,10),name:x[COL.name],status:x[COL.status]||'Pending',
-        talk:+x[COL.talk],cust_talk:+x[COL.cust_talk],wpm:+x[COL.wpm],cust_wpm:+x[COL.cust_wpm],
-        turn:+x[COL.turn],avgturn:+x[COL.avgturn],cust_avgturn:+x[COL.cust_avgturn],
-        mono:+x[COL.mono],cust_mono:+x[COL.cust_mono],pause:+x[COL.pause],q:+x[COL.q],
-        score:x[COL.score]?+x[COL.score]:null
-      })).filter(d=>!isNaN(d.talk)).sort((a,b)=>a.date.localeCompare(b.date));
+    const rilla=await fetchTab(TAB, RANGE);
+    if(rilla && rilla.error) throw new Error(rilla.error);
+
+    if(Array.isArray(rilla) && rilla.length>1){
+      /* build name -> status lookup from MASTER (optional; degrades to Pending if unavailable) */
+      let master={exact:{},list:[]};
+      try{
+        const m=await fetchTab(MASTER_TAB, MASTER_RANGE);
+        if(Array.isArray(m) && m.length>1){
+          m.slice(1).forEach(r=>{
+            const nm=normName(r[MCOL.name]);
+            const st=String(r[MCOL.status]||'').trim();
+            if(nm && st){
+              master.exact[nm]=st;  // last row per name wins (most recent status)
+              master.list.push({tokens:nm.split(' ').filter(t=>t.length>=3), status:st});
+            }
+          });
+        }
+      }catch(e){ /* MASTER read optional — dots fall back to Pending */ }
+
+      const body=rilla.slice(1).filter(x=>x[COL.name]);
+      DATA=body.map(x=>{
+        const name=x[COL.name];
+        return {
+          date:String(x[COL.date]).slice(0,10),
+          name,
+          status: lookupStatus(name, master) || 'Pending',
+          talk:num(x[COL.talk]), cust_talk:num(x[COL.cust_talk]),
+          wpm:num(x[COL.wpm]), cust_wpm:num(x[COL.cust_wpm]),
+          turn:num(x[COL.turn]), avgturn:num(x[COL.avgturn]), cust_avgturn:num(x[COL.cust_avgturn]),
+          mono:num(x[COL.mono]), cust_mono:num(x[COL.cust_mono]),
+          pause:num(x[COL.pause]), q:num(x[COL.q]), score:num(x[COL.score])
+        };
+      }).filter(d=>d.talk!=null).sort((a,b)=>a.date.localeCompare(b.date));
+
       const now=new Date();
       document.getElementById('src-note').textContent='Live · '+DATA.length+' appointments · '+now.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
     } else {
