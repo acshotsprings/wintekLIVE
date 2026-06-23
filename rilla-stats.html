@@ -123,34 +123,32 @@
 
 <footer>
   <div>Rilla Stats <span class="stripes">&#9733;</span> Conversation analytics for Chris Campbell <span class="stripes">&#9733;</span> Pulls live from WinTek Sales Sheet · RILLA STATS tab</div>
-  <div style="margin-top:6px;opacity:0.6;">Running average recalculates with every appointment. Lower talk &amp; turn ratio, higher engagement &amp; pauses trend toward closes.</div>
+  <div style="margin-top:6px;opacity:0.6;">Running average recalculates with every appointment. Lower talk &amp; turn ratio and higher engagement trend toward closes.</div>
 </footer>
 
 <script>
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxMi6s-OLmDwK8UMfBbnvy_a8_VhbrEwHACDl8hYKiiYZClaFqOxDmm0jvAdiL2NbixUQ/exec';
 const TAB = 'RILLA STATS';
-const RANGE = 'A1:N500';
+const RANGE = 'A1:M500';
 
-/* ---- column indices: RILLA STATS tab is 14 cols, A–N, NO status column ----
+/* ---- column indices: RILLA STATS tab is now 13 cols, A–M (Pause Freq removed) ----
    A date | B name | C talk | D cust_talk | E wpm | F cust_wpm | G turn |
-   H avgturn | I cust_avgturn | J mono | K cust_mono | L pause | M q | N score   */
+   H avgturn | I cust_avgturn | J mono | K cust_mono | L q | M score            */
 const COL = { date:0, name:1, talk:2, cust_talk:3, wpm:4, cust_wpm:5, turn:6,
-              avgturn:7, cust_avgturn:8, mono:9, cust_mono:10, pause:11, q:12, score:13 };
+              avgturn:7, cust_avgturn:8, mono:9, cust_mono:10, q:11, score:12 };
 
-/* ---- MASTER tab: status lives here, joined onto Rilla rows by name ----
-   A date | B appt_time | C customer_name | ... | H status                   */
 const MASTER_TAB = 'MASTER';
 const MASTER_RANGE = 'A1:U2000';
 const MCOL = { name:2, status:7 };
 
 /* fallback snapshot (used only if the live read fails) */
 let DATA = [
-  {date:"2026-05-19",name:"Ms. Bertha",status:"Sold",talk:77.9,cust_talk:22.1,wpm:169,cust_wpm:159,turn:2.3,avgturn:15.1,cust_avgturn:9.7,mono:6.4,cust_mono:0.8,pause:14,q:217,score:null},
-  {date:"2026-06-02",name:"Joy Stout",status:"Not Sold",talk:87.1,cust_talk:12.9,wpm:182,cust_wpm:192,turn:2.8,avgturn:14.2,cust_avgturn:5.9,mono:4.5,cust_mono:0.3,pause:11,q:225,score:null},
-  {date:"2026-06-17",name:"Stephen Threets",status:"Pending",talk:85.3,cust_talk:14.7,wpm:141,cust_wpm:163,turn:2.2,avgturn:13.8,cust_avgturn:5.2,mono:3.0,cust_mono:1.75,pause:9,q:139,score:null},
-  {date:"2026-06-18",name:"Carol Sheldon",status:"NG",talk:77.0,cust_talk:23.0,wpm:212,cust_wpm:108,turn:2.5,avgturn:20.3,cust_avgturn:15.2,mono:4.51,cust_mono:2.19,pause:12,q:47,score:8.75},
-  {date:"2026-06-18",name:"Larry Roberts",status:"Not Sold",talk:87.3,cust_talk:12.7,wpm:201,cust_wpm:170,turn:2.6,avgturn:16.1,cust_avgturn:6.2,mono:8.0,cust_mono:1.0,pause:7,q:260,score:8.65},
-  {date:"2026-06-22",name:"Arlene McDaniel",status:"Sold",talk:78.8,cust_talk:21.2,wpm:190,cust_wpm:197,turn:1.95,avgturn:13.5,cust_avgturn:7.1,mono:4.7,cust_mono:1.4,pause:null,q:395,score:9.04}
+  {date:"2026-05-19",name:"Ms. Bertha",status:"Sold",talk:77.9,cust_talk:22.1,wpm:169,cust_wpm:159,turn:2.3,avgturn:15.1,cust_avgturn:9.7,mono:6.4,cust_mono:0.8,q:217,score:null},
+  {date:"2026-06-02",name:"Joy Stout",status:"Not Sold",talk:87.1,cust_talk:12.9,wpm:182,cust_wpm:192,turn:2.8,avgturn:14.2,cust_avgturn:5.9,mono:4.5,cust_mono:0.3,q:225,score:null},
+  {date:"2026-06-17",name:"Stephen Threets",status:"Pending",talk:85.3,cust_talk:14.7,wpm:141,cust_wpm:163,turn:2.2,avgturn:13.8,cust_avgturn:5.2,mono:3.0,cust_mono:1.75,q:139,score:null},
+  {date:"2026-06-18",name:"Carol Sheldon",status:"NG",talk:77.0,cust_talk:23.0,wpm:212,cust_wpm:108,turn:2.5,avgturn:20.3,cust_avgturn:15.2,mono:4.51,cust_mono:2.19,q:47,score:8.75},
+  {date:"2026-06-18",name:"Larry Roberts",status:"Not Sold",talk:87.3,cust_talk:12.7,wpm:201,cust_wpm:170,turn:2.6,avgturn:16.1,cust_avgturn:6.2,mono:8.0,cust_mono:1.0,q:260,score:8.65},
+  {date:"2026-06-22",name:"Arlene McDaniel",status:"Sold",talk:78.8,cust_talk:21.2,wpm:190,cust_wpm:197,turn:1.95,avgturn:13.5,cust_avgturn:7.1,mono:4.7,cust_mono:1.4,q:395,score:9.04}
 ];
 
 const METRICS = [
@@ -158,7 +156,6 @@ const METRICS = [
   {key:"cust_talk",label:"Customer Talk %",unit:"%",dir:"up",goal:"Higher = customer opening up. Sold call: 22.1%."},
   {key:"turn",label:"Turn Ratio",unit:":1",dir:"down",goal:"Your speaking turns vs theirs. Aim for 2.0 or below."},
   {key:"cust_avgturn",label:"Customer Avg Turn",unit:"w",dir:"up",goal:"Words per customer turn. Higher means fuller answers."},
-  {key:"pause",label:"Pause Frequency",unit:"",dir:"up",goal:"Strategic silences that hand the floor over. More is better."},
   {key:"q",label:"Questions Asked",unit:"",dir:"flat",goal:"Volume isn't the goal — whether it opens the customer up is."},
   {key:"wpm",label:"Your Pace",unit:" wpm",dir:"flat",goal:"Your speaking speed. Measured beats relentless."}
 ];
@@ -299,7 +296,7 @@ async function loadLive(force){
           wpm:num(x[COL.wpm]), cust_wpm:num(x[COL.cust_wpm]),
           turn:num(x[COL.turn]), avgturn:num(x[COL.avgturn]), cust_avgturn:num(x[COL.cust_avgturn]),
           mono:num(x[COL.mono]), cust_mono:num(x[COL.cust_mono]),
-          pause:num(x[COL.pause]), q:num(x[COL.q]), score:num(x[COL.score])
+          q:num(x[COL.q]), score:num(x[COL.score])
         };
       }).filter(d=>d.talk!=null).sort((a,b)=>a.date.localeCompare(b.date));
 
