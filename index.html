@@ -267,6 +267,15 @@ const STATUS_COLORS = {
 const TOTAL_COLOR = '#011E59';
 const STATUS_ORDER = ['Sold','Not Sold','No Sale - Follow Up','No Sale Follow Up','NG','Cancelled','Canceled','No Show','Rescheduled','Rescinded','One Leg'];
 
+/* ---- Close Rate (pitched) ----------------------------------------------
+   Measures in-room effectiveness: of the appointments you actually RAN,
+   what fraction did you close? NG counts as a sale (system-wide rule).
+   Cancelled / No Show / Rescheduled are EXCLUDED — they were never a pitch,
+   so they can't be a miss. Rescinded is excluded too (it's tracked as
+   post-sale attrition in its own card). Edit these two lists to retune. */
+const CLOSE_NUM_STATUSES = ['Sold','NG'];
+const PITCHED_STATUSES   = ['Sold','NG','Not Sold','No Sale - Follow Up','No Sale Follow Up','No Sale FU','One Leg'];
+
 const STAT_CARDS = [
   {id:'stat-sold',     label:'Total Sold',  color:'#1D9E75', keys:['Sold']},
   {id:'stat-notsold',  label:'Not Sold',    color:'#E24B4A', keys:['Not Sold']},
@@ -296,6 +305,8 @@ function flatLine(data) {
   return data.map(() => parseFloat(avg.toFixed(2)));
 }
 function pct(count, total) { if (!total) return '0%'; return Math.round((count/total)*100) + '%'; }
+function sumStatuses(list){ return list.reduce((sum,k)=>sum+(statusTotals[k]||0),0); }
+function closeRate(){ const den=sumStatuses(PITCHED_STATUSES), num=sumStatuses(CLOSE_NUM_STATUSES); return {num,den,pct: den? Math.round((num/den)*100):0}; }
 function sumByPrefix(prefix) {
   const p = prefix.trim().toLowerCase();
   return Object.keys(statusTotals).filter(k => k.trim().toLowerCase().startsWith(p)).reduce((sum,k) => sum + statusTotals[k], 0);
@@ -349,6 +360,13 @@ function renderAttrition() {
   cCard.className = 'attrition-card canceled';
   cCard.innerHTML = `<div class="big-num" style="color:#888780">${cc} <span style="font-size:16px">(${cp}%)</span></div><div class="sub">Cancelled</div><div class="note">${cp}% of total appointments cancelled. ${cp >= 20 ? '⚠️ High cancel rate.' : 'Within normal range.'}</div>`;
 
+  const close = closeRate();
+  const clCard = document.createElement('div');
+  clCard.className = 'attrition-card';
+  clCard.style.cssText = 'background:#ecfdf5;border:1px solid #a7f3d0;border-left:4px solid #1D9E75;color:#065f46;';
+  clCard.innerHTML = `<div class="big-num" style="color:#1D9E75">${close.pct}<span style="font-size:16px">%</span></div><div class="sub">Close Rate (pitched)</div><div class="note">${close.num} closed of ${close.den} appointment${close.den!==1?'s':''} actually run. Cancels, no-shows &amp; reschedules excluded — they were never a pitch, so they can't count as a miss.</div>`;
+
+  panel.appendChild(clCard);
   panel.appendChild(rCard);
   panel.appendChild(cCard);
 }
@@ -656,6 +674,15 @@ function buildChart(weeks) {
                 const bar = '█'.repeat(Math.round(p/10)) || '·';
                 lines.push(ds.label + ': ' + val + '  (' + p + '%)  ' + bar);
               });
+              let wNum = 0, wDen = 0;
+              chartInstance.data.datasets.forEach(ds => {
+                if (ds.label === 'Total Appts' || ds.label.startsWith('avg__')) return;
+                const v = ds.data[idx] || 0;
+                if (CLOSE_NUM_STATUSES.includes(ds.label)) wNum += v;
+                if (PITCHED_STATUSES.includes(ds.label))   wDen += v;
+              });
+              lines.push('');
+              lines.push('Close rate (pitched): ' + (wDen ? Math.round(wNum/wDen*100) : 0) + '%   (' + wNum + '/' + wDen + ' run)');
               return lines;
             },
             title: items => 'Week of ' + items[0].label
