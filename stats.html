@@ -474,7 +474,19 @@ function renderDashboard(data) {
   const totalCommission = funded.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
   const totalSale = funded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
   const fundedSoldWindows = funded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
-  
+
+  // Month-to-date revenue — funded (Sold) rows dated within the current calendar month
+  const _now = new Date();
+  const _mtdMonth = _now.getMonth();
+  const _mtdYear = _now.getFullYear();
+  const _monthName = _now.toLocaleString('en-US', { month: 'long' });
+  const mtdFunded = funded.filter(r => {
+    const d = new Date(r[0]);
+    return !isNaN(d) && d.getMonth() === _mtdMonth && d.getFullYear() === _mtdYear;
+  });
+  const mtdRevenue = mtdFunded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+  const mtdWindows = mtdFunded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+
   // PPU Funded (what actually paid)
   const fundedPpu = fundedSoldWindows ? (totalSale / fundedSoldWindows) : 0;
   
@@ -503,6 +515,8 @@ function renderDashboard(data) {
       <div class="kpi-label">Total Revenue</div>
       <div class="kpi-value">${fmtMoney(totalSale) || '$0.00'}</div>
       <div class="kpi-sub">${fundedSoldWindows} windows sold</div>
+      <div class="kpi-sub" style="font-weight:700;color:var(--navy);margin-top:4px;">${fmtMoney(mtdRevenue) || '$0.00'} this month</div>
+      <div class="kpi-sub" style="margin-top:2px;">${_monthName} · ${mtdWindows} windows</div>
     </div>
     <div class="kpi green">
       <div class="kpi-label">Income YTD</div>
