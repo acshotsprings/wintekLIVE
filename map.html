@@ -9,153 +9,56 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   :root {
-    --navy: #011E59;
-    --navy-dark: #00153f;
-    --red: #DD1A1A;
-    --offwhite: #f5f7fb;
-    --gray: #6b7280;
-    --gray-light: #e5e7eb;
+    --navy: #011E59; --navy-dark: #00153f; --red: #DD1A1A;
+    --offwhite: #f5f7fb; --gray: #6b7280; --gray-light: #e5e7eb;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--offwhite);
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
+    background: var(--offwhite); height: 100vh; display: flex; flex-direction: column;
   }
   header {
     background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
-    color: white;
-    padding: 14px 20px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-    flex-shrink: 0;
+    color: white; padding: 14px 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.15); flex-shrink: 0;
   }
-  .header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    max-width: 1400px;
-    margin: 0 auto;
-    gap: 16px;
-  }
+  .header-row { display: flex; align-items: center; justify-content: space-between; max-width: 1400px; margin: 0 auto; gap: 16px; }
   .brand { display: flex; align-items: center; gap: 12px; }
-  .brand-logo {
-    width: 44px; height: 44px;
-    background: white;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-  }
+  .brand-logo { width: 44px; height: 44px; background: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 4px; }
   .brand-logo img { width: 100%; }
-  .brand-text h1 {
-    font-size: 1.15rem;
-    font-weight: 800;
-    line-height: 1.1;
-  }
+  .brand-text h1 { font-size: 1.15rem; font-weight: 800; line-height: 1.1; }
   .brand-text h1 .red { color: #ff8a8a; }
   .brand-text .sub { font-size: 0.75rem; opacity: 0.85; }
   .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
-  .nav-links a {
-    color: white;
-    text-decoration: none;
-    padding: 7px 12px;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    font-weight: 600;
-    background: rgba(255,255,255,0.12);
-  }
+  .nav-links a { color: white; text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 0.82rem; font-weight: 600; background: rgba(255,255,255,0.12); }
   .nav-links a.active { background: var(--red); }
-
-  .map-wrap {
-    flex: 1;
-    position: relative;
-  }
+  .map-wrap { flex: 1; position: relative; }
   #map { width: 100%; height: 100%; }
-
-  .legend {
-    position: absolute;
-    bottom: 20px;
-    right: 20px;
-    background: white;
-    border-radius: 10px;
-    padding: 12px 14px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-    font-size: 0.8rem;
-    z-index: 500;
-  }
-  .legend h4 {
-    color: var(--navy);
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-  }
-  .legend-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
-  }
-  .dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 2px solid white;
-    box-shadow: 0 0 2px rgba(0,0,0,0.4);
-  }
-  .stats-box {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    background: white;
-    border-radius: 10px;
-    padding: 14px 16px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-    z-index: 500;
-    min-width: 180px;
-  }
-  .stats-box h4 {
-    color: var(--navy);
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 8px;
-  }
-  .stats-row {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-    font-size: 0.85rem;
-    border-bottom: 1px solid var(--gray-light);
-  }
+  .legend { position: absolute; bottom: 20px; right: 20px; background: white; border-radius: 10px; padding: 12px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); font-size: 0.8rem; z-index: 500; }
+  .legend h4 { color: var(--navy); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 2px rgba(0,0,0,0.4); }
+  .stats-box { position: absolute; top: 20px; left: 20px; background: white; border-radius: 10px; padding: 14px 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); z-index: 500; min-width: 180px; }
+  .stats-box h4 { color: var(--navy); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .stats-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; border-bottom: 1px solid var(--gray-light); }
   .stats-row:last-child { border-bottom: none; }
   .stats-row strong { color: var(--navy); }
-  .loading-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(245,247,251,0.95);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 600;
-    color: var(--navy);
-    font-weight: 600;
-  }
+  .loading-overlay { position: absolute; inset: 0; background: rgba(245,247,251,0.95); display: flex; align-items: center; justify-content: center; z-index: 600; color: var(--navy); font-weight: 600; }
+  /* popup action buttons */
+  .pop-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .pop-btn { flex: 1; text-align: center; text-decoration: none; font-size: 0.8rem; font-weight: 700; padding: 8px 6px; border-radius: 7px; color: #fff; }
+  .pop-btn.sv { background: var(--navy); }
+  .pop-btn.dir { background: var(--red); }
+  .pop-approx { margin-top: 6px; font-size: 0.72rem; color: #b45309; background: #fef3c7; border-radius: 5px; padding: 3px 6px; }
 </style>
 </head>
 <body>
 <header>
   <div class="header-row">
     <div class="brand">
-      <div class="brand-logo">
-        <img src="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png" alt="WinTek USA">
-      </div>
+      <div class="brand-logo"><img src="https://wintekusa.com/wp-content/uploads/2026/01/WinTek-Logo-landscape-768x414.png" alt="WinTek USA"></div>
       <div class="brand-text">
         <h1>WIN<span class="red">TEK</span> LIVE — Territory</h1>
-        <div class="sub">Memphis, TN</div>
+        <div class="sub">Mid-South · AR / TN / MS</div>
       </div>
     </div>
     <div class="nav-links">
@@ -190,11 +93,62 @@
 <script>
 const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxMi6s-OLmDwK8UMfBbnvy_a8_VhbrEwHACDl8hYKiiYZClaFqOxDmm0jvAdiL2NbixUQ/exec';
 
-// Centered on Memphis / Mid-South territory (AR / TN / MS)
-const map = L.map('map').setView([35.12, -89.97], 7);
+// ---------------------------------------------------------------------------
+// BAKED COORDINATES ("pre-geocode"): every known address already resolved to
+// its rooftop, so the map drops all pins instantly with zero live lookups.
+// Key = "address, city, state".toLowerCase() (matches the MASTER feed).
+// A 3rd value of 1 = approximate (city-level) location.
+// Regenerated server-side; new/unknown addresses fall back to live geocode.
+// ---------------------------------------------------------------------------
+const GEO = {
+  "614 sunset dr, west helena, ar":[34.553534,-90.634848],
+  "2262 little more dr, memphis, tn":[35.187964,-89.777265],
+  "1309 raven cir, trumann, ar":[35.686904,-90.535937],
+  "1523 dunmoor rd, memphis, tn":[35.102488,-89.969015],
+  "36 twilight cv, jackson, tn":[35.648965,-88.858639],
+  "4251 creek manor cv, memphis, tn":[35.032321,-89.821324],
+  "705 s 18th st, west memphis, ar":[35.137664,-90.163074],
+  "600 white oak dr, marion, ar":[35.193695,-90.18956],
+  "123 kristi dr, osceola, ar":[35.694794,-90.00193],
+  "605 sycamore st, luxora, ar":[35.760386,-89.932381],
+  "1241 3rd st, trumann, ar":[35.683676,-90.523417],
+  "4607 kanawha cv, memphis, tn":[35.022708,-89.949895],
+  "301 louise st, blytheville, ar":[35.924786,-89.886818],
+  "2221 redwood drive, bono, ar":[35.904854,-90.795487],
+  "2611 young ave, memphis, tn":[35.119246,-89.975015],
+  "3441 elk point rd, memphis, tn":[35.251108,-89.949306],
+  "2289 arlene ave, memphis, tn":[35.219043,-89.987613],
+  "904 faxon ave, memphis, tn":[35.156161,-90.028665],
+  "5166 appleville st, memphis, tn":[35.007556,-90.057488],
+  "335 reginelli dr, marion, ar":[35.184651,-90.180265],
+  "1044 n izard st, forrest city, ar":[35.019598,-90.785904],
+  "9154 afton grove rd, cordova, tn":[35.154223,-89.757658],
+  "8796 chimneyrock blvd, cordova, tn":[35.176335,-89.770068],
+  "7801 ward rd, millington, tn":[35.338792,-89.977546],
+  "4909 warrington rd, memphis, tn":[35.042574,-89.899688],
+  "501 tennessee st, blytheville, ar":[35.935262,-89.895666],
+  "6963 luxor lane, cordova, tn":[35.154853,-89.831408],
+  "1405 wendover lane, west memphis, arkansas":[35.157635,-90.213366],
+  "208 sequoia st, wynne, ar":[35.214875,-90.779717],
+  "124 shields ln, blytheville, ar":[35.95627,-89.966233],
+  "1055 forrest ave w, wynne, ar":[35.230402,-90.801255],
+  "737 lackey rd, marion, ar":[35.192247,-90.21606],
+  "332 midway rd, marvell, ar":[34.563654,-90.909873],
+  "926 county road 251, lexa, ar":[34.597161,-90.750373,1],
+  "1901 welch rd, dyersburg, tn":[36.05049,-89.291046],
+  "2328 tarbet dr, memphis, tn":[35.085224,-89.856008],
+  "8634 e holmes rd, memphis, tn":[35.006074,-89.774604],
+  "4023 e state highway 120, luxora, ar":[35.797812,-89.863116],
+  "2821 oakleigh ln, germantown, tn":[35.07175,-89.776902],
+  "1809 w college blvd, jonesboro, ar":[35.825904,-90.728163],
+  "1288 harpeth dr, memphis, tn":[35.160759,-89.840884],
+  "277 bluebird rd, covington, tn":[35.60271,-89.639356],
+  "310 dozier cir, marion, ar":[35.214614,-90.211933]
+};
+
+const map = L.map('map').setView([35.30, -90.10], 8);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  maxZoom: 19,
-  attribution: '© OpenStreetMap'
+  maxZoom: 19, attribution: '© OpenStreetMap'
 }).addTo(map);
 
 function statusColor(s) {
@@ -204,37 +158,34 @@ function statusColor(s) {
   return '#6b7280';
 }
 
-// --- Geocode cache (persists in the browser so we only ever look up an address once) ---
-const GEO_KEY = 'wintek_geocache_v1';
-let geoCache = {};
-try { geoCache = JSON.parse(localStorage.getItem(GEO_KEY) || '{}'); } catch(e) { geoCache = {}; }
-function persistCache() { try { localStorage.setItem(GEO_KEY, JSON.stringify(geoCache)); } catch(e) {} }
-
+// live-geocode fallback (only ever runs for an address not in GEO)
+const GEO_KEY = 'wintek_geocache_v2';
+let liveCache = {};
+try { liveCache = JSON.parse(localStorage.getItem(GEO_KEY) || '{}'); } catch(e) { liveCache = {}; }
+function persistCache() { try { localStorage.setItem(GEO_KEY, JSON.stringify(liveCache)); } catch(e) {} }
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-// Network geocode with one retry + backoff. Returns [lat,lng] or null.
 async function geocodeNet(q) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}`
-            + `&format=json&limit=1&countrycodes=us&email=acshotsprings@gmail.com`;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  const url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q)
+            + '&format=json&limit=1&countrycodes=us&email=acshotsprings@gmail.com';
+  for (let a = 0; a < 2; a++) {
     try {
       const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      if (r.ok) {
-        const d = await r.json();
-        return d.length ? [parseFloat(d[0].lat), parseFloat(d[0].lon)] : null;
-      }
+      if (r.ok) { const d = await r.json(); return d.length ? [parseFloat(d[0].lat), parseFloat(d[0].lon)] : null; }
     } catch(e) {}
-    await sleep(1500); // back off before retry
+    await sleep(1500);
   }
   return null;
 }
 
+function svLink(lat, lng) { return 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=' + lat + ',' + lng; }
+function dirLink(lat, lng) { return 'https://www.google.com/maps/dir/?api=1&destination=' + lat + ',' + lng; }
+
 async function loadMap() {
   try {
-    const r = await fetch(`${ENDPOINT}?tab=MASTER&range=A1:V500`);
+    const r = await fetch(ENDPOINT + '?tab=MASTER&range=A1:V500');
     const data = await r.json();
     if (data.error) throw new Error(data.error);
-    const rows = data.slice(1).filter(r => r[3] && r[4]); // has address+city
+    const rows = data.slice(1).filter(r => r[3] && r[4]); // has address + city
 
     document.getElementById('stat-total').textContent = rows.length;
     document.getElementById('stat-sold').textContent = rows.filter(r => r[7]==='Sold').length;
@@ -242,59 +193,61 @@ async function loadMap() {
     document.getElementById('stat-cities').textContent = new Set(rows.map(r => r[4])).size;
 
     if (rows.length === 0) {
-      document.getElementById('loader').innerHTML =
-        '🚀 No appointments yet — they\'ll appear here as you log them.';
+      document.getElementById('loader').innerHTML = '🚀 No appointments yet — they\'ll appear here as you log them.';
       setTimeout(() => document.getElementById('loader').style.display = 'none', 3000);
       return;
     }
 
     const bounds = [];
-    function addMarker(coords, row) {
-      bounds.push(coords);
-      const marker = L.circleMarker(coords, {
-        radius: 8,
-        fillColor: statusColor(row[7]),
-        color: '#fff',
-        weight: 2,
-        fillOpacity: 0.85
+    function addMarker(coords, row, approx) {
+      const lat = coords[0], lng = coords[1];
+      bounds.push([lat, lng]);
+      const marker = L.circleMarker([lat, lng], {
+        radius: 8, fillColor: statusColor(row[7]),
+        color: approx ? '#f59e0b' : '#fff',
+        weight: approx ? 3 : 2, dashArray: approx ? '3' : null, fillOpacity: 0.85
       }).addTo(map);
-      marker.bindPopup(`
-        <div style="font-family:-apple-system,sans-serif;min-width:180px">
-          <strong style="color:#011E59">${row[2] || 'Unknown'}</strong><br>
-          <span style="color:#6b7280;font-size:0.85em">${row[3]}, ${row[4]}, ${row[5] || ''}</span><br>
-          <div style="margin-top:6px"><strong>Status:</strong> ${row[7] || '—'}</div>
-          ${row[8] ? `<div><strong>Sale:</strong> $${parseFloat(row[8]).toLocaleString()}</div>` : ''}
-        </div>
-      `);
+      const sale = row[8] ? '<div><strong>Sale:</strong> $' + parseFloat(row[8]).toLocaleString() + '</div>' : '';
+      const approxNote = approx ? '<div class="pop-approx">📍 Approx. location (rural address) — Street View may be limited.</div>' : '';
+      marker.bindPopup(
+        '<div style="font-family:-apple-system,sans-serif;min-width:200px">'
+        + '<strong style="color:#011E59">' + (row[2] || 'Unknown') + '</strong><br>'
+        + '<span style="color:#6b7280;font-size:0.85em">' + row[3] + ', ' + row[4] + ', ' + (row[5] || '') + '</span><br>'
+        + '<div style="margin-top:6px"><strong>Status:</strong> ' + (row[7] || '—') + '</div>'
+        + sale + approxNote
+        + '<div class="pop-actions">'
+        + '<a class="pop-btn sv" href="' + svLink(lat,lng) + '" target="_blank" rel="noopener">👁 Street View</a>'
+        + '<a class="pop-btn dir" href="' + dirLink(lat,lng) + '" target="_blank" rel="noopener">🧭 Directions</a>'
+        + '</div></div>'
+      );
     }
 
-    // Pass 1 — instantly drop every dot we already have cached.
+    // Pass 1 — instant: baked coords (GEO) or a previously live-cached one.
     const pending = [];
     for (const row of rows) {
-      const key = `${row[3]}, ${row[4]}, ${row[5] || 'TN'}`.toLowerCase();
-      if (geoCache[key]) addMarker(geoCache[key], row);
+      const key = (row[3] + ', ' + row[4] + ', ' + (row[5] || 'TN')).toLowerCase();
+      if (GEO[key])        addMarker(GEO[key], row, GEO[key].length > 2 && GEO[key][2] === 1);
+      else if (liveCache[key]) addMarker(liveCache[key], row, false);
       else pending.push({ row, key });
     }
 
     document.getElementById('loader').style.display = 'none';
     if (bounds.length) map.fitBounds(bounds, { padding: [40, 40] });
 
-    // Pass 2 — look up only the addresses we've never seen, throttled to 1/sec (always).
+    // Pass 2 — only brand-new addresses we've never resolved. Throttled 1/sec.
     for (const item of pending) {
       const coords = await geocodeNet(item.key);
       if (coords) {
-        geoCache[item.key] = coords;
-        persistCache();
-        addMarker(coords, item.row);
+        liveCache[item.key] = coords; persistCache();
+        addMarker(coords, item.row, false);
         map.fitBounds(bounds, { padding: [40, 40] });
       }
-      await sleep(1100); // unconditional — never machine-gun the service
+      await sleep(1100);
     }
   } catch(e) {
-    document.getElementById('loader').innerHTML = `Error: ${e.message}`;
+    document.getElementById('loader').innerHTML = 'Error: ' + e.message;
   }
 }
-
 loadMap();
 </script>
 </body>
