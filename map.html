@@ -76,9 +76,9 @@
   <div class="stats-box" id="stats">
     <h4>Territory Stats</h4>
     <div class="stats-row"><span>Runs</span><strong id="stat-runs">—</strong></div>
-    <div class="stats-row"><span>Sold</span><strong id="stat-sold" style="color:#16a34a">—</strong></div>
+    <div class="stats-row"><span>Closed <span style="color:var(--gray);font-weight:400;font-size:0.7rem">(incl. NG/resc)</span></span><strong id="stat-closed" style="color:#16a34a">—</strong></div>
     <div class="stats-row"><span>Close rate</span><strong id="stat-close" style="color:#011E59">—</strong></div>
-    <div class="stats-row"><span>NG</span><strong id="stat-ng" style="color:#f59e0b">—</strong></div>
+    <div class="stats-row"><span>Sold <span style="color:var(--gray);font-weight:400;font-size:0.7rem">(funded)</span></span><strong id="stat-sold">—</strong></div>
     <div class="stats-row"><span>Cities</span><strong id="stat-cities">—</strong></div>
     <div class="stats-row" style="border-bottom:none;margin-top:4px;padding-top:6px;border-top:1px solid var(--gray-light)"><span style="color:var(--gray);font-size:0.76rem">Scheduled (incl. cancel/resched)</span><strong id="stat-total" style="color:var(--gray);font-weight:600">—</strong></div>
   </div>
@@ -189,14 +189,17 @@ async function loadMap() {
     if (data.error) throw new Error(data.error);
     const rows = data.slice(1).filter(r => r[3] && r[4]); // has address + city
 
-    // Runs = appointments actually pitched (Pitch column = "Yes"), NOT every scheduled row.
-    // Cancels / reschedules / no-shows are excluded so the close rate reflects real sit-downs.
-    const runs = rows.filter(r => String(r[21] || '').trim().toLowerCase() === 'yes').length;
-    const soldN = rows.filter(r => r[7] === 'Sold').length;
-    document.getElementById('stat-runs').textContent = runs;
+    // Identical definitions to the Live Stats page so the two never disagree.
+    // Runs excludes cancels/reschedules/no-shows; a "close" = Sold, NG, or Rescinded.
+    const RUN_STATUSES   = ['Sold', 'NG', 'Rescinded', 'Not Sold', 'No Sale - Follow Up'];
+    const CLOSE_STATUSES = ['Sold', 'NG', 'Rescinded'];
+    const runsN   = rows.filter(r => RUN_STATUSES.includes(r[7])).length;
+    const closesN = rows.filter(r => CLOSE_STATUSES.includes(r[7])).length;
+    const soldN   = rows.filter(r => r[7] === 'Sold').length;
+    document.getElementById('stat-runs').textContent = runsN;
+    document.getElementById('stat-closed').textContent = closesN;
+    document.getElementById('stat-close').textContent = runsN ? (closesN / runsN * 100).toFixed(1) + '%' : '—';
     document.getElementById('stat-sold').textContent = soldN;
-    document.getElementById('stat-close').textContent = runs ? Math.round(100 * soldN / runs) + '%' : '—';
-    document.getElementById('stat-ng').textContent = rows.filter(r => r[7]==='NG').length;
     document.getElementById('stat-cities').textContent = new Set(rows.map(r => r[4])).size;
     document.getElementById('stat-total').textContent = rows.length;
 
