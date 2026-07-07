@@ -218,6 +218,10 @@
         <button class="refresh-btn" onclick="loadData()">Refresh</button>
       </div>
     </div>
+    <div style="font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin:-4px 0 12px;line-height:1.55;">
+      <span style="color:#0891B2;font-weight:600;">● Follow-Ups Created</span> = every follow-up that started that week (never drops, even after it converts). &nbsp;
+      <span style="color:#4D7C0F;font-weight:600;">● Follow-Ups Resolved</span> = those now Sold or Not Sold. The gap between them is your still-pending follow-ups.
+    </div>
     <div class="controls" id="controls"></div>
     <div class="chart-wrap"><canvas id="chart"></canvas></div>
   </div>
@@ -262,10 +266,13 @@ const STATUS_COLORS = {
   'No Sale Follow Up': '#EC4899',
   'No Sale - Follow Up': '#EC4899',
   'No Sale FU': '#EC4899',
-  'Rescinded': '#A855F7'
+  'Rescinded': '#A855F7',
+  'Follow-Ups Created': '#0891B2',
+  'Follow-Ups Resolved': '#4D7C0F'
 };
 const TOTAL_COLOR = '#011E59';
 const STATUS_ORDER = ['Sold','Not Sold','No Sale - Follow Up','No Sale Follow Up','NG','Cancelled','Canceled','No Show','Rescheduled','Rescinded','One Leg'];
+const EXTRA_LINES = ['Follow-Ups Created', 'Follow-Ups Resolved'];
 
 /* ---- Close Rate (pitched) ----------------------------------------------
    Measures in-room effectiveness: of the appointments you actually RAN,
@@ -372,7 +379,7 @@ function renderAttrition() {
 }
 
 function syncStatDim() {
-  const uniqueLabels = ['Total Appts', ..._orderedStatuses];
+  const uniqueLabels = ['Total Appts', ..._orderedStatuses, ...EXTRA_LINES];
   const visMap = {};
   uniqueLabels.forEach((lbl, i) => { visMap[lbl] = visible[i]; });
   STAT_CARDS.forEach(card => {
@@ -541,7 +548,7 @@ async function loadData() {
   loadMetricsWidget();
 
   // Apps Script returns array with header row at index 0; we need columns A (Date) and H (Status)
-  const url = `${ENDPOINT}?tab=${encodeURIComponent(MASTER_TAB)}&range=A1:H500`;
+  const url = `${ENDPOINT}?tab=${encodeURIComponent(MASTER_TAB)}&range=A1:Y500`;
 
   try {
     const res = await fetch(url);
@@ -570,10 +577,16 @@ async function loadData() {
       if (isNaN(parsed)) return;
       const we = weekEnding(parsed);
       const key = we.toISOString().slice(0, 10);
-      if (!weekMap[key]) weekMap[key] = { date: we, counts: {} };
+      if (!weekMap[key]) weekMap[key] = { date: we, counts: {}, fuCreated: 0, fuResolved: 0 };
       weekMap[key].counts[status] = (weekMap[key].counts[status] || 0) + 1;
       statusTotals[status] = (statusTotals[status] || 0) + 1;
       grandTotal++;
+
+      const flagged = (r[24] === true) || (String(r[24]).trim().toUpperCase() === 'TRUE');
+      if (flagged) {
+        weekMap[key].fuCreated++;
+        if (status === 'Sold' || status === 'Not Sold') weekMap[key].fuResolved++;
+      }
     });
 
     const sortedKeys = Object.keys(weekMap).sort();
@@ -613,7 +626,12 @@ async function loadData() {
       statuses.push({ label: s, color, data: flatLine(rawData[s]), isAvg: true, width: 1.5, dash: [4,5] });
     });
 
-    const uniqueLabels = ['Total Appts', ..._orderedStatuses];
+    const createdData  = sortedKeys.map(k => weekMap[k].fuCreated  || 0);
+    const resolvedData = sortedKeys.map(k => weekMap[k].fuResolved || 0);
+    statuses.push({ label: 'Follow-Ups Created',  color: STATUS_COLORS['Follow-Ups Created'],  data: createdData,  isAvg: false, width: 3 });
+    statuses.push({ label: 'Follow-Ups Resolved', color: STATUS_COLORS['Follow-Ups Resolved'], data: resolvedData, isAvg: false, width: 3 });
+
+    const uniqueLabels = ['Total Appts', ..._orderedStatuses, ...EXTRA_LINES];
     visible = uniqueLabels.map(() => true);
     buildChart(weeks);
     buildControls(_orderedStatuses);
@@ -668,7 +686,7 @@ function buildChart(weeks) {
               if (tot === 0) return ['No appointments this week'];
               const lines = ['── % of ' + tot + ' total appts ──'];
               chartInstance.data.datasets.forEach(ds => {
-                if (ds.label === 'Total Appts' || ds.label.startsWith('avg__') || ds.hidden) return;
+                if (ds.label === 'Total Appts' || ds.label.startsWith('avg__') || ds.hidden || EXTRA_LINES.includes(ds.label)) return;
                 const val = ds.data[idx] || 0;
                 const p = Math.round((val/tot)*100);
                 const bar = '█'.repeat(Math.round(p/10)) || '·';
@@ -701,7 +719,7 @@ function buildChart(weeks) {
 function buildControls(orderedStatuses) {
   const controls = document.getElementById('controls');
   controls.innerHTML = '';
-  const uniqueLabels = ['Total Appts', ...orderedStatuses];
+  const uniqueLabels = ['Total Appts', ...orderedStatuses, ...EXTRA_LINES];
   uniqueLabels.forEach((lbl, i) => {
     const color = lbl === 'Total Appts' ? TOTAL_COLOR : (STATUS_COLORS[lbl] || '#999');
     const btn = document.createElement('button');
