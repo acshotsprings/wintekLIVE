@@ -487,6 +487,18 @@ function renderDashboard(data) {
   const mtdRevenue = mtdFunded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
   const mtdWindows = mtdFunded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
 
+  // Last month — funded (Sold) rows dated within the previous calendar month
+  const _lastMonthRef = new Date(_mtdYear, _mtdMonth - 1, 1);   // handles Jan -> prior Dec
+  const _lmMonth = _lastMonthRef.getMonth();
+  const _lmYear = _lastMonthRef.getFullYear();
+  const _lmName = _lastMonthRef.toLocaleString('en-US', { month: 'long' });
+  const lmFunded = funded.filter(r => {
+    const d = new Date(r[0]);
+    return !isNaN(d) && d.getMonth() === _lmMonth && d.getFullYear() === _lmYear;
+  });
+  const lmWindows = lmFunded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+  const lmRevenue = lmFunded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+
   // PPU Funded (what actually paid)
   const fundedPpu = fundedSoldWindows ? (totalSale / fundedSoldWindows) : 0;
   
@@ -517,6 +529,8 @@ function renderDashboard(data) {
       <div class="kpi-sub">${fundedSoldWindows} windows sold</div>
       <div class="kpi-sub" style="font-weight:700;color:var(--navy);margin-top:4px;">${fmtMoney(mtdRevenue) || '$0.00'} this month</div>
       <div class="kpi-sub" style="margin-top:2px;">${_monthName} · ${mtdWindows} windows</div>
+      <div class="kpi-sub" style="font-weight:700;color:var(--navy);margin-top:6px;border-top:1px solid rgba(0,0,0,0.08);padding-top:6px;">${lmWindows} windows sold in ${_lmName}</div>
+      <div class="kpi-sub" style="margin-top:2px;">${fmtMoney(lmRevenue) || '$0.00'} last month</div>
     </div>
     <div class="kpi green">
       <div class="kpi-label">Income YTD</div>
