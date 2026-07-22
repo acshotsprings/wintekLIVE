@@ -355,7 +355,7 @@ function renderAttrition() {
   panel.innerHTML = '';
   const rc = statusTotals['Rescinded'] || 0;
   const cc = sumByPrefix('cancel');
-  const tsi = (statusTotals['Sold'] || 0) + rc;
+  const tsi = (statusTotals['Sold'] || 0) + (statusTotals['NG'] || 0) + rc; // closes = Sold + NG + Rescinded (NG counts as a close, system-wide)
   const rp = tsi > 0 ? Math.round((rc/tsi)*100) : 0;
   const cp = grandTotal > 0 ? Math.round((cc/grandTotal)*100) : 0;
 
