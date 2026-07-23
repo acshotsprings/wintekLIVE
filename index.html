@@ -126,6 +126,14 @@
   .card-title { font-size: 12px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.85rem; font-family: 'DM Mono', monospace; }
 
   .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.25rem; }
+  /* --- collapsible Training Scoreboard --- */
+  #mw-toggle { cursor: pointer; user-select: none; }
+  #mw-toggle:hover .metrics-widget-title { opacity: 0.75; }
+  .mw-chev { display: inline-block; font-size: 11px; opacity: 0.5; margin-right: 3px; transition: transform 0.18s ease; }
+  #metrics-widget:not(.collapsed) .mw-chev { transform: rotate(90deg); }
+  #metrics-widget.collapsed #mw-body { display: none; }
+  #metrics-widget.collapsed .metrics-widget-header { margin-bottom: 0; }
+  #metrics-widget.collapsed { padding-bottom: 14px; }
   .toggle-btn { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 999px; border: 1.5px solid; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s, transform 0.1s; background: transparent; font-family: 'DM Sans', sans-serif; }
   .toggle-btn:hover { transform: translateY(-1px); }
   .toggle-btn:active { transform: scale(0.97); }
@@ -187,16 +195,18 @@
 
 <!-- Metrics widget — phase averages (top) + per-customer drill-down (below) -->
 <div id="metrics-widget" class="metrics-widget" style="display:none;">
-  <div class="metrics-widget-header">
+  <div class="metrics-widget-header" id="mw-toggle" title="Click to expand / collapse">
     <div>
-      <div class="metrics-widget-title">★ Training Scoreboard — Phase Averages</div>
+      <div class="metrics-widget-title"><span class="mw-chev">▶</span> ★ Training Scoreboard — Phase Averages</div>
       <div class="metrics-widget-meta"><span id="mw-summary">—</span></div>
     </div>
     <a href="metrics.html" class="metrics-widget-link">View full metrics →</a>
   </div>
-  <div class="mini-phase-grid" id="mw-grid"></div>
-  <div class="mw2-colhead">By appointment — tap a customer to expand</div>
-  <div id="mw-customers"></div>
+  <div id="mw-body">
+    <div class="mini-phase-grid" id="mw-grid"></div>
+    <div class="mw2-colhead">By appointment — tap a customer to expand</div>
+    <div id="mw-customers"></div>
+  </div>
 </div>
 
 <div id="error-box" class="error" style="display:none;"></div>
@@ -415,6 +425,7 @@ async function loadMetricsWidget() {
     renderCustomerList(rows);
 
     document.getElementById('metrics-widget').style.display = 'block';
+    initScoreboardCollapse();
   } catch (e) {
     // Silently fail — the widget just won't show
     console.warn('Metrics widget unavailable:', e.message);
@@ -462,6 +473,24 @@ function trendBadge(trend) {
   return '<div class="mini-trend ' + trend.dir + '" title="' + tip + '">' + glyph + ' ' + txt + '</div>';
 }
 
+// Collapse/expand the Training Scoreboard. Defaults collapsed; remembers your choice.
+function initScoreboardCollapse() {
+  const w = document.getElementById('metrics-widget');
+  const h = document.getElementById('mw-toggle');
+  if (!w || !h || h.dataset.wired) return;
+  h.dataset.wired = '1';
+
+  let open = false;
+  try { open = localStorage.getItem('wt-scoreboard-open') === '1'; } catch (e) {}
+  w.classList.toggle('collapsed', !open);
+
+  h.addEventListener('click', (e) => {
+    if (e.target.closest('a')) return;            // let "View full metrics" through
+    const nowOpen = w.classList.toggle('collapsed') === false;
+    try { localStorage.setItem('wt-scoreboard-open', nowOpen ? '1' : '0'); } catch (e) {}
+  });
+}
+
 // TOP: average each phase + overall across ALL audited appointments
 function renderPhaseAverages(rows) {
   const grid = document.getElementById('mw-grid');
@@ -483,7 +512,8 @@ function renderPhaseAverages(rows) {
   overallDiv.innerHTML = `<div class="mini-label">OVERALL</div><div class="mini-score" style="color:${overallTextColor(ovAvg)}">${isNaN(ovAvg)?'—':ovAvg.toFixed(1)}</div>${trendBadge(ovTrend)}`;
   grid.appendChild(overallDiv);
 
-  document.getElementById('mw-summary').textContent = rows.length + ' appointments audited \u00b7 averaged';
+  document.getElementById('mw-summary').textContent =
+    (isNaN(ovAvg) ? '' : 'Overall ' + ovAvg.toFixed(1) + ' \u00b7 ') + rows.length + ' appointments audited';
 }
 
 // Build one customer's inner layout: scoreboard boxes + clickable phase column + coaching
