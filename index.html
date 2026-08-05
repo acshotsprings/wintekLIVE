@@ -317,8 +317,9 @@ function weekEnding(date) {
 }
 function dateKey(d) { return (d.getMonth()+1) + '/' + d.getDate(); }
 function flatLine(data) {
-  const active = data.filter(v => v > 0);
-  const avg = active.length > 0 ? active.reduce((a,b) => a+b, 0) / active.length : 0;
+  // FIXED 8/5/26: average over ALL weeks including zeros. The old version
+  // dropped zero weeks, so a 4,0,0,2 month averaged 3.0 instead of 1.5.
+  const avg = data.length > 0 ? data.reduce((a,b) => a+b, 0) / data.length : 0;
   return data.map(() => parseFloat(avg.toFixed(2)));
 }
 function pct(count, total) { if (!total) return '0%'; return Math.round((count/total)*100) + '%'; }
