@@ -432,7 +432,7 @@ async function fetchSheet(tab, range) {
 async function loadAll() {
   document.getElementById('last-updated').textContent = 'Updating…';
   try {
-    const data = await fetchSheet('MASTER', 'A1:V500');
+    const data = await fetchSheet('MASTER', 'A1:AD500');
     if (data.error) throw new Error(data.error);
     renderDashboard(data);
     const now = new Date();
@@ -469,6 +469,29 @@ function renderDashboard(data) {
   // Pitch metrics — Pitch column is V (index 21), derived Yes/No from Status on the sheet
   const pitched = rows.filter(r => String(r[21]).trim().toLowerCase() === 'yes');
   const pitchPct = rows.length ? (pitched.length / rows.length * 100).toFixed(1) : 0;
+
+  // ---- Two pitch lenses (Haynes, confirmed 8/3/2026) ----------------------
+  // COMPANY: demos / every lead issued. Nothing removed. That's pitchPct above.
+  // SALES:   demos / what the rep actually controlled. Haynes does NOT charge
+  //          the rep for a Marketing issue, a Customer issue, a no-show or a
+  //          one-leg. Salesman issues STAY in the denominator, because that is
+  //          what measures the ability to get in the house.
+  // Source of truth is MASTER col AD "Issue Type" (index 29). Reading AD and
+  // nothing else keeps this tile and the sheet formula mathematically identical
+  // -- if they ever disagree, the data is wrong, not one of the two formulas.
+  const issueType = r => String(r[29] || '').trim().toLowerCase();
+  const notCharged = rows.filter(r => {
+    const t = issueType(r);
+    return t === 'marketing' || t === 'customer';
+  }).length;
+  const salesIssued = rows.length - notCharged;
+  const isTagged = rows.some(r => issueType(r) !== '');
+  const untagged = rows.filter(r =>
+    String(r[21]).trim().toLowerCase() !== 'yes' && issueType(r) === ''
+  ).length;
+  const salesPitchPct = salesIssued > 0
+    ? (pitched.length / salesIssued * 100).toFixed(1)
+    : 0;
   
   // Funded metrics (actual money paid)
   const totalCommission = funded.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
@@ -546,14 +569,21 @@ function renderDashboard(data) {
       <div class="kpi-sub">${ng.length} NG · ${closes.length} combined (incl. rescind)</div>
     </div>
     <div class="kpi green">
-      <div class="kpi-label">Pitch %</div>
+      <div class="kpi-label">Pitch % (Company)</div>
       <div class="kpi-value">${pitchPct}%</div>
-      <div class="kpi-sub">${pitched.length} of ${rows.length} pitched</div>
+      <div class="kpi-sub">${pitched.length} of ${rows.length} issued</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">Pitch % (Sales)</div>
+      <div class="kpi-value">${isTagged ? salesPitchPct + '%' : '&mdash;'}</div>
+      <div class="kpi-sub">${isTagged
+        ? `${pitched.length} of ${salesIssued} controlled${untagged ? ` &middot; ${untagged} untagged` : ''}`
+        : 'Needs Issue Type in MASTER col AD'}</div>
     </div>
     <div class="kpi amber">
       <div class="kpi-label">Close Rate</div>
       <div class="kpi-value">${closeRate}%</div>
-      <div class="kpi-sub">${runs.length} appts run</div>
+      <div class="kpi-sub">${closes.length} of ${runs.length} demos</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Avg PPU (Funded)</div>
