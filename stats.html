@@ -486,10 +486,10 @@ function renderDashboard(data) {
   // So they come out of BOTH lenses, not just the sales one.
   const issued = rows.filter(r => String(r[7]).trim() !== 'Rescheduled').length;
 
-  const notCharged = rows.filter(r => {
-    const t = issueType(r);
-    return t === 'marketing' || t === 'customer';
-  }).length;
+  // OUR number: only Marketing comes out - leads that should never have been
+  // issued. Customer cancels STAY IN, because we eat those. This is the number
+  // that actually moves when performance changes.
+  const notCharged = rows.filter(r => issueType(r) === 'marketing').length;
   const salesIssued = issued - notCharged;
   const isTagged = rows.some(r => issueType(r) !== '');
   const untagged = rows.filter(r =>
@@ -578,15 +578,15 @@ function renderDashboard(data) {
       <div class="kpi-sub">${ng.length} NG · ${closes.length} combined (incl. rescind)</div>
     </div>
     <div class="kpi green">
-      <div class="kpi-label">Pitch % (Company)</div>
+      <div class="kpi-label">Pitch % &mdash; Company</div>
       <div class="kpi-value">${companyPitchPct}%</div>
-      <div class="kpi-sub">${pitched.length} of ${issued} issued</div>
+      <div class="kpi-sub">Haynes' math &middot; ${pitched.length} of ${issued} issued</div>
     </div>
     <div class="kpi green">
-      <div class="kpi-label">Pitch % (Sales)</div>
+      <div class="kpi-label">Pitch % &mdash; Ours</div>
       <div class="kpi-value">${isTagged ? salesPitchPct + '%' : '&mdash;'}</div>
       <div class="kpi-sub">${isTagged
-        ? `${pitched.length} of ${salesIssued} controlled${untagged ? ` &middot; ${untagged} untagged` : ''}`
+        ? `${pitched.length} of ${salesIssued} workable &middot; bad leads out, cancels kept`
         : 'Needs Issue Type in MASTER col AD'}</div>
     </div>
     <div class="kpi amber">
