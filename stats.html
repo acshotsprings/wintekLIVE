@@ -468,7 +468,7 @@ function renderDashboard(data) {
   
   // Pitch metrics — Pitch column is V (index 21), derived Yes/No from Status on the sheet
   const pitched = rows.filter(r => String(r[21]).trim().toLowerCase() === 'yes');
-  const pitchPct = rows.length ? (pitched.length / rows.length * 100).toFixed(1) : 0;
+  const pitchPct = 0; // recomputed below once reschedules are excluded
 
   // ---- Two pitch lenses (Haynes, confirmed 8/3/2026) ----------------------
   // COMPANY: demos / every lead issued. Nothing removed. That's pitchPct above.
@@ -480,15 +480,24 @@ function renderDashboard(data) {
   // nothing else keeps this tile and the sheet formula mathematically identical
   // -- if they ever disagree, the data is wrong, not one of the two formulas.
   const issueType = r => String(r[29] || '').trim().toLowerCase();
+
+  // Reschedules are not at-bats. Reverse-engineered from Haynes' July board:
+  // 28 MASTER rows - 2 reschedules = his 26 issued, and the 16 demos tie exactly.
+  // So they come out of BOTH lenses, not just the sales one.
+  const issued = rows.filter(r => String(r[7]).trim() !== 'Rescheduled').length;
+
   const notCharged = rows.filter(r => {
     const t = issueType(r);
     return t === 'marketing' || t === 'customer';
   }).length;
-  const salesIssued = rows.length - notCharged;
+  const salesIssued = issued - notCharged;
   const isTagged = rows.some(r => issueType(r) !== '');
   const untagged = rows.filter(r =>
     String(r[21]).trim().toLowerCase() !== 'yes' && issueType(r) === ''
   ).length;
+  const companyPitchPct = issued > 0
+    ? (pitched.length / issued * 100).toFixed(1)
+    : 0;
   const salesPitchPct = salesIssued > 0
     ? (pitched.length / salesIssued * 100).toFixed(1)
     : 0;
@@ -570,8 +579,8 @@ function renderDashboard(data) {
     </div>
     <div class="kpi green">
       <div class="kpi-label">Pitch % (Company)</div>
-      <div class="kpi-value">${pitchPct}%</div>
-      <div class="kpi-sub">${pitched.length} of ${rows.length} issued</div>
+      <div class="kpi-value">${companyPitchPct}%</div>
+      <div class="kpi-sub">${pitched.length} of ${issued} issued</div>
     </div>
     <div class="kpi green">
       <div class="kpi-label">Pitch % (Sales)</div>
