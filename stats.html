@@ -171,6 +171,38 @@
     margin-top: 4px;
   }
 
+  /* Per-card period lenses: current month + current week (Mon-start) */
+  .kpi-scope {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .kpi-scope-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--gray);
+    line-height: 1.25;
+  }
+  .kpi-scope-tag {
+    flex: 0 0 auto;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--navy);
+    border-radius: 4px;
+    padding: 2px 5px;
+    white-space: nowrap;
+  }
+  .kpi-scope-tag.week { background: var(--gray); }
+  .kpi-scope-val { font-weight: 700; color: var(--navy); }
+
   .grid-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -532,6 +564,72 @@ function renderDashboard(data) {
   const lmWindows = lmFunded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
   const lmRevenue = lmFunded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
 
+  // ---- PERIOD LENSES: current month + current week -------------------------
+  // Week runs Monday->Sunday to match MASTER col U (week_start_mon), so this
+  // page and the Weekly Performance tab always describe the same seven days.
+  // Every period figure below reuses the exact same filters as the YTD number
+  // sitting above it -- same status buckets, same Issue Type rules -- so a card
+  // and its month/week strip can never disagree on definitions, only on dates.
+  const _rowDate = r => { const d = new Date(r[0]); return isNaN(d) ? null : d; };
+
+  const _weekStart = (function() {
+    const d = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate());
+    const dow = (d.getDay() + 6) % 7;            // 0 = Monday
+    d.setDate(d.getDate() - dow);
+    return d;
+  })();
+  const _weekEnd = new Date(_weekStart.getFullYear(), _weekStart.getMonth(), _weekStart.getDate() + 7);
+  const _weekLabel = 'Wk ' + (_weekStart.getMonth() + 1) + '/' + _weekStart.getDate();
+
+  const inMonth = r => {
+    const d = _rowDate(r);
+    return !!d && d.getMonth() === _mtdMonth && d.getFullYear() === _mtdYear;
+  };
+  const inWeek = r => {
+    const d = _rowDate(r);
+    return !!d && d >= _weekStart && d < _weekEnd;
+  };
+
+  function periodStats(subset) {
+    const p = {};
+    p.all     = subset;
+    p.sold    = subset.filter(r => r[7] === 'Sold');
+    p.ng      = subset.filter(r => r[7] === 'NG');
+    p.closes  = subset.filter(r => CLOSE_STATUSES.includes(r[7]));
+    p.runs    = subset.filter(r => RUN_STATUSES.includes(r[7]));
+    p.funded  = subset.filter(r => FUNDED_STATUSES.includes(r[7]));
+    p.pitched = subset.filter(r => String(r[21]).trim().toLowerCase() === 'yes');
+    p.issued      = subset.filter(r => String(r[7]).trim() !== 'Rescheduled').length;
+    p.notCharged  = subset.filter(r => issueType(r) === 'marketing').length;
+    p.salesIssued = p.issued - p.notCharged;
+    p.revenue    = p.funded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+    p.commission = p.funded.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
+    p.windows    = p.funded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+    p.closeSale    = p.closes.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+    p.closeWindows = p.closes.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+    p.fundedPpu = p.windows      ? p.revenue   / p.windows      : 0;
+    p.closePpu  = p.closeWindows ? p.closeSale / p.closeWindows : 0;
+    p.companyPitchPct = p.issued      > 0 ? (p.pitched.length / p.issued      * 100).toFixed(1) : null;
+    p.salesPitchPct   = p.salesIssued > 0 ? (p.pitched.length / p.salesIssued * 100).toFixed(1) : null;
+    p.closeRate       = p.runs.length > 0 ? (p.closes.length  / p.runs.length * 100).toFixed(1) : null;
+    return p;
+  }
+
+  const MO = periodStats(rows.filter(inMonth));
+  const WK = periodStats(rows.filter(inWeek));
+
+  // Compact money for the strips -- whole dollars, so two lines fit a narrow card
+  const money0 = n => (!n || isNaN(n)) ? '$0' : '$' + Math.round(n).toLocaleString('en-US');
+  // null means "no denominator yet this period" -- show a dash, never a fake 0%
+  const pct = v => (v === null ? '&mdash;' : v + '%');
+
+  function scope(monthHtml, weekHtml) {
+    return `<div class="kpi-scope">
+      <div class="kpi-scope-row"><span class="kpi-scope-tag">${_monthName.slice(0,3)}</span><span>${monthHtml}</span></div>
+      <div class="kpi-scope-row"><span class="kpi-scope-tag week">${_weekLabel}</span><span>${weekHtml}</span></div>
+    </div>`;
+  }
+
   // PPU Funded (what actually paid)
   const fundedPpu = fundedSoldWindows ? (totalSale / fundedSoldWindows) : 0;
   
@@ -560,10 +658,11 @@ function renderDashboard(data) {
       <div class="kpi-label">Total Revenue</div>
       <div class="kpi-value">${fmtMoney(totalSale) || '$0.00'}</div>
       <div class="kpi-sub">${fundedSoldWindows} windows sold</div>
-      <div class="kpi-sub" style="font-weight:700;color:var(--navy);margin-top:4px;">${fmtMoney(mtdRevenue) || '$0.00'} this month</div>
-      <div class="kpi-sub" style="margin-top:2px;">${_monthName} · ${mtdWindows} windows</div>
-      <div class="kpi-sub" style="font-weight:700;color:var(--navy);margin-top:6px;border-top:1px solid rgba(0,0,0,0.08);padding-top:6px;">${lmWindows} windows sold in ${_lmName}</div>
-      <div class="kpi-sub" style="margin-top:2px;">${fmtMoney(lmRevenue) || '$0.00'} last month</div>
+      <div class="kpi-sub">${_lmName} (last month): ${fmtMoney(lmRevenue) || '$0.00'} · ${lmWindows} windows</div>
+      ${scope(
+        `<span class="kpi-scope-val">${money0(MO.revenue)}</span> · ${MO.windows} wnds · ${MO.sold.length} sold`,
+        `<span class="kpi-scope-val">${money0(WK.revenue)}</span> · ${WK.windows} wnds · ${WK.sold.length} sold`
+      )}
     </div>
     <div class="kpi green">
       <div class="kpi-label">Income YTD</div>
@@ -572,16 +671,28 @@ function renderDashboard(data) {
       <div class="kpi-sub" style="font-weight:700;color:var(--navy);margin-top:4px;">${fmtMoney(weeklyAvgIncome)}/wk avg</div>
       <div class="kpi-sub" style="margin-top:2px;">${fmtMoney(onPaceYear)} on pace / yr-end</div>
       <div class="kpi-sub" style="margin-top:2px;">${fmtMoney(onPaceCombined)} w/ WinChoice</div>
+      ${scope(
+        `<span class="kpi-scope-val">${money0(MO.commission)}</span> earned`,
+        `<span class="kpi-scope-val">${money0(WK.commission)}</span> earned`
+      )}
     </div>
     <div class="kpi">
       <div class="kpi-label">Sales Closed</div>
       <div class="kpi-value">${closes.length}</div>
       <div class="kpi-sub">${ng.length} NG · ${closes.length} combined (incl. rescind)</div>
+      ${scope(
+        `<span class="kpi-scope-val">${MO.closes.length}</span> closes · ${MO.sold.length} sold · ${MO.ng.length} NG`,
+        `<span class="kpi-scope-val">${WK.closes.length}</span> closes · ${WK.sold.length} sold · ${WK.ng.length} NG`
+      )}
     </div>
     <div class="kpi green">
       <div class="kpi-label">Pitch % &mdash; Company</div>
       <div class="kpi-value">${companyPitchPct}%</div>
       <div class="kpi-sub">Haynes' math &middot; ${pitched.length} of ${issued} issued</div>
+      ${scope(
+        `<span class="kpi-scope-val">${pct(MO.companyPitchPct)}</span> · ${MO.pitched.length} of ${MO.issued}`,
+        `<span class="kpi-scope-val">${pct(WK.companyPitchPct)}</span> · ${WK.pitched.length} of ${WK.issued}`
+      )}
     </div>
     <div class="kpi green">
       <div class="kpi-label">Pitch % &mdash; Ours</div>
@@ -589,21 +700,37 @@ function renderDashboard(data) {
       <div class="kpi-sub">${isTagged
         ? `${pitched.length} of ${salesIssued} workable &middot; bad leads out, cancels kept`
         : 'Needs Issue Type in MASTER col AD'}</div>
+      ${scope(
+        `<span class="kpi-scope-val">${pct(MO.salesPitchPct)}</span> · ${MO.pitched.length} of ${MO.salesIssued} workable`,
+        `<span class="kpi-scope-val">${pct(WK.salesPitchPct)}</span> · ${WK.pitched.length} of ${WK.salesIssued} workable`
+      )}
     </div>
     <div class="kpi amber">
       <div class="kpi-label">Close Rate</div>
       <div class="kpi-value">${closeRate}%</div>
       <div class="kpi-sub">${closes.length} of ${runs.length} demos</div>
+      ${scope(
+        `<span class="kpi-scope-val">${pct(MO.closeRate)}</span> · ${MO.closes.length} of ${MO.runs.length} demos`,
+        `<span class="kpi-scope-val">${pct(WK.closeRate)}</span> · ${WK.closes.length} of ${WK.runs.length} demos`
+      )}
     </div>
     <div class="kpi">
       <div class="kpi-label">Avg PPU (Funded)</div>
       <div class="kpi-value">${fmtMoney(fundedPpu) || '$0.00'}</div>
       <div class="kpi-sub">Per window (paid)</div>
+      ${scope(
+        `<span class="kpi-scope-val">${MO.fundedPpu ? money0(MO.fundedPpu) : '&mdash;'}</span> · ${MO.windows} wnds`,
+        `<span class="kpi-scope-val">${WK.fundedPpu ? money0(WK.fundedPpu) : '&mdash;'}</span> · ${WK.windows} wnds`
+      )}
     </div>
     <div class="kpi">
       <div class="kpi-label">Close PPU</div>
       <div class="kpi-value">${fmtMoney(closePpu) || '$0.00'}</div>
       <div class="kpi-sub">Per window (all closes)</div>
+      ${scope(
+        `<span class="kpi-scope-val">${MO.closePpu ? money0(MO.closePpu) : '&mdash;'}</span> · ${MO.closeWindows} wnds`,
+        `<span class="kpi-scope-val">${WK.closePpu ? money0(WK.closePpu) : '&mdash;'}</span> · ${WK.closeWindows} wnds`
+      )}
     </div>
   `;
 
