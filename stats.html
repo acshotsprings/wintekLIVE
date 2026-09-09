@@ -397,6 +397,8 @@
     <div class="loading">Loading WinTek data…</div>
   </div>
 
+  <div id="data-check"></div>
+
   <div class="grid-2">
     <div class="card">
       <h2>Recent Appointments</h2>
@@ -467,7 +469,16 @@ async function loadAll() {
   try {
     const data = await fetchSheet('MASTER', 'A1:AD500');
     if (data.error) throw new Error(data.error);
-    renderDashboard(data);
+    // TRADES carries every non-window job's money, because MASTER never may.
+    // Row 1 of that tab is the commission-rate config and row 2 is the real
+    // header, so we start the range at A2 to match the slice(1) convention.
+    // A TRADES failure must not blank the whole dashboard -- fall back to [].
+    let trades = [];
+    try {
+      const t = await fetchSheet('TRADES', 'A2:L200');
+      if (Array.isArray(t) && !t.error) trades = t;
+    } catch (te) { trades = []; }
+    renderDashboard(data, trades);
     const now = new Date();
     document.getElementById('last-updated').textContent = 
       'Live · Updated ' + now.toLocaleTimeString('en-US', {hour: 'numeric', minute: '2-digit'});
@@ -478,7 +489,7 @@ async function loadAll() {
   }
 }
 
-function renderDashboard(data) {
+function renderDashboard(data, trades) {
   if (!data || data.length < 2) {
     document.getElementById('kpis').innerHTML = 
       '<div class="empty-state"><div class="big">🚀</div><div>Fresh start! No appointments logged yet.</div><div style="margin-top:6px;font-size:0.8rem;">Book your first WinTek appointment and it shows up here.</div></div>';
@@ -498,17 +509,63 @@ function renderDashboard(data) {
   const closes = rows.filter(r => CLOSE_STATUSES.includes(r[7]));
   const runs = rows.filter(r => RUN_STATUSES.includes(r[7]));
   const funded = rows.filter(r => FUNDED_STATUSES.includes(r[7]));
-  
+  const rescinded = rows.filter(r => r[7] === 'Rescinded');
+
+  // ---- WINDOW-MONEY GUARD (added 9/9/2026) --------------------------------
+  // MASTER col AC (index 28) says whether a row is a window job or a trade.
+  // Trade money lives on the TRADES tab and NEVER on MASTER -- a trade row
+  // carrying a Total Sale is a data-entry error, and it poisons three tiles at
+  // once: it adds dollars to window revenue, adds a commission that TRADES is
+  // already paying, and drags PPU because those dollars have no window count
+  // behind them. Caught 9/9/26 on the Cynthia Gross roofing row, which was
+  // pushing Funded PPU from $1,608 to $1,690.
+  //
+  // APPOINTMENT COUNTS ARE UNAFFECTED. Per the standing rule, a trade
+  // appointment is still an appointment and still counts in pitch %, close
+  // rate and appointments-set. Only the dollar and PPU tiles go windows-only.
+  const isWindowRow = r => {
+    const t = String(r[28] || '').trim().toLowerCase();
+    return t === '' || t === 'windows';
+  };
+  const fundedW = funded.filter(isWindowRow);
+  const closesW = closes.filter(isWindowRow);
+
+  // Anything the guard had to throw out, or any close carrying money with no
+  // window count, gets SHOWN -- a silent guard is just a quieter bug.
+  const dataIssues = [];
+  rows.forEach(r => {
+    const sale = parseFloat(r[8]) || 0;
+    if (!sale) return;
+    const wnds = parseFloat(r[13]) || 0;
+    const who = `${r[2] || '(no name)'} · ${fmtDate(r[0])}`;
+    if (!isWindowRow(r)) {
+      dataIssues.push(`<b>${who}</b> — ${r[28]} row carrying ${fmtMoney(sale)} on MASTER. Counted once, from TRADES; held out of window revenue and PPU. The sheet's own YTD tab drops it too, so nothing double-pays — but confirm col K here is still a formula, not a typed number.`);
+    } else if (!wnds && CLOSE_STATUSES.includes(r[7])) {
+      dataIssues.push(`<b>${who}</b> — ${r[7]} with ${fmtMoney(sale)} but no Sold Windows. PPU can't see it. Fill col N.`);
+    }
+  });
+
   // Pitch metrics — Pitch column is V (index 21), derived Yes/No from Status on the sheet
   const pitched = rows.filter(r => String(r[21]).trim().toLowerCase() === 'yes');
   const pitchPct = 0; // recomputed below once reschedules are excluded
 
-  // ---- Two pitch lenses (Haynes, confirmed 8/3/2026) ----------------------
-  // COMPANY: demos / every lead issued. Nothing removed. That's pitchPct above.
-  // SALES:   demos / what the rep actually controlled. Haynes does NOT charge
-  //          the rep for a Marketing issue, a Customer issue, a no-show or a
-  //          one-leg. Salesman issues STAY in the denominator, because that is
-  //          what measures the ability to get in the house.
+  // ---- Two pitch lenses ----------------------------------------------------
+  // COMPANY: demos / every lead issued, reschedules aside. Nothing else removed.
+  // OURS:    demos / what the rep actually controlled.
+  //
+  // READ THIS BEFORE TRUSTING THE "OURS" NUMBER. The forgiveness rule is NOT
+  // confirmed with Haynes (punch list PL-084). What we know is that he forgave
+  // 5 of 10 dead appointments; we do not know the wording. The code below
+  // removes MARKETING ONLY, which is the conservative reading -- bad leads that
+  // should never have been issued come out, customer cancels stay in because we
+  // eat those. An earlier version of this comment claimed Customer, no-show and
+  // one-leg came out too, which the code never did. Comment now matches code.
+  //
+  // The spread is not small, so the tile shows both: Marketing-only is the
+  // headline, and the Marketing+Customer reading sits under it labelled
+  // UNCONFIRMED. Settle it with Haynes in the same conversation as the
+  // close-rate definition, then delete the loser.
+  //
   // Source of truth is MASTER col AD "Issue Type" (index 29). Reading AD and
   // nothing else keeps this tile and the sheet formula mathematically identical
   // -- if they ever disagree, the data is wrong, not one of the two formulas.
@@ -534,18 +591,38 @@ function renderDashboard(data) {
   const salesPitchPct = salesIssued > 0
     ? (pitched.length / salesIssued * 100).toFixed(1)
     : 0;
-  
-  // Funded metrics (actual money paid)
-  const totalCommission = funded.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
-  const totalSale = funded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
-  const fundedSoldWindows = funded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+  // The unconfirmed alternate reading: Customer issues come out as well.
+  const altNotCharged = rows.filter(r =>
+    issueType(r) === 'marketing' || issueType(r) === 'customer'
+  ).length;
+  const altIssued = issued - altNotCharged;
+  const altPitchPct = altIssued > 0
+    ? (pitched.length / altIssued * 100).toFixed(1)
+    : null;
+
+  // ---- TRADES: where non-window money actually lives -----------------------
+  // Roofing, doors, gutters and siding are sold on the same appointments and
+  // paid at the flat trade rate, but their dollars are barred from MASTER (a
+  // MASTER trade row with money in col I double-pays on paper and wrecks PPU).
+  // So the money is read from the TRADES tab and added back here. Without this
+  // block, blanking a trade row's Total Sale on MASTER would make that job's
+  // commission disappear from the dashboard entirely -- earned, paid, invisible.
+  const tradeRows  = (Array.isArray(trades) ? trades : []).slice(1).filter(r => r[0] || r[2]);
+  const tradeSold  = tradeRows.filter(r => String(r[4]).trim() === 'Sold');
+  const tradeRevenue    = tradeSold.reduce((s,r) => s + (parseFloat(r[5])||0), 0);
+  const tradeCommission = tradeSold.reduce((s,r) => s + (parseFloat(r[6])||0), 0);
+
+  // Funded metrics (actual money paid) — WINDOWS ONLY, see the guard above
+  const totalCommission = fundedW.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
+  const totalSale = fundedW.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+  const fundedSoldWindows = fundedW.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
 
   // Month-to-date revenue — funded (Sold) rows dated within the current calendar month
   const _now = new Date();
   const _mtdMonth = _now.getMonth();
   const _mtdYear = _now.getFullYear();
   const _monthName = _now.toLocaleString('en-US', { month: 'long' });
-  const mtdFunded = funded.filter(r => {
+  const mtdFunded = fundedW.filter(r => {
     const d = new Date(r[0]);
     return !isNaN(d) && d.getMonth() === _mtdMonth && d.getFullYear() === _mtdYear;
   });
@@ -557,12 +634,16 @@ function renderDashboard(data) {
   const _lmMonth = _lastMonthRef.getMonth();
   const _lmYear = _lastMonthRef.getFullYear();
   const _lmName = _lastMonthRef.toLocaleString('en-US', { month: 'long' });
-  const lmFunded = funded.filter(r => {
+  const lmFunded = fundedW.filter(r => {
     const d = new Date(r[0]);
     return !isNaN(d) && d.getMonth() === _lmMonth && d.getFullYear() === _lmYear;
   });
   const lmWindows = lmFunded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
-  const lmRevenue = lmFunded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+  const lmRevenue = lmFunded.reduce((s,r) => s + (parseFloat(r[8])||0), 0)
+    + tradeSold.filter(r => {
+        const d = new Date(r[1]);
+        return !isNaN(d) && d.getMonth() === _lmMonth && d.getFullYear() === _lmYear;
+      }).reduce((s,r) => s + (parseFloat(r[5])||0), 0);
 
   // ---- PERIOD LENSES: current month + current week -------------------------
   // Week runs Monday->Sunday to match MASTER col U (week_start_mon), so this
@@ -598,15 +679,18 @@ function renderDashboard(data) {
     p.closes  = subset.filter(r => CLOSE_STATUSES.includes(r[7]));
     p.runs    = subset.filter(r => RUN_STATUSES.includes(r[7]));
     p.funded  = subset.filter(r => FUNDED_STATUSES.includes(r[7]));
+    // windows-only mirrors, used for every dollar and PPU figure below
+    p.fundedW = p.funded.filter(isWindowRow);
+    p.closesW = p.closes.filter(isWindowRow);
     p.pitched = subset.filter(r => String(r[21]).trim().toLowerCase() === 'yes');
     p.issued      = subset.filter(r => String(r[7]).trim() !== 'Rescheduled').length;
     p.notCharged  = subset.filter(r => issueType(r) === 'marketing').length;
     p.salesIssued = p.issued - p.notCharged;
-    p.revenue    = p.funded.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
-    p.commission = p.funded.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
-    p.windows    = p.funded.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
-    p.closeSale    = p.closes.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
-    p.closeWindows = p.closes.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+    p.revenue    = p.fundedW.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+    p.commission = p.fundedW.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
+    p.windows    = p.fundedW.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+    p.closeSale    = p.closesW.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+    p.closeWindows = p.closesW.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
     p.fundedPpu = p.windows      ? p.revenue   / p.windows      : 0;
     p.closePpu  = p.closeWindows ? p.closeSale / p.closeWindows : 0;
     p.companyPitchPct = p.issued      > 0 ? (p.pitched.length / p.issued      * 100).toFixed(1) : null;
@@ -617,6 +701,24 @@ function renderDashboard(data) {
 
   const MO = periodStats(rows.filter(inMonth));
   const WK = periodStats(rows.filter(inWeek));
+
+  // Trade money for the same two windows. Without this a month whose only sale
+  // was a roof reads $0 -- which is exactly what September 2026 did before this
+  // was added. TRADES dates sit in col B (index 1), not col A.
+  const tradeIn = pred => tradeSold.filter(r => {
+    const d = new Date(r[1]);
+    return !isNaN(d) && pred(d);
+  });
+  const attachTrades = (p, list) => {
+    p.tradeRevenue    = list.reduce((s,r) => s + (parseFloat(r[5])||0), 0);
+    p.tradeCommission = list.reduce((s,r) => s + (parseFloat(r[6])||0), 0);
+    p.tradeCount      = list.length;
+    p.allRevenue      = p.revenue    + p.tradeRevenue;
+    p.allCommission   = p.commission + p.tradeCommission;
+    return p;
+  };
+  attachTrades(MO, tradeIn(d => d.getMonth() === _mtdMonth && d.getFullYear() === _mtdYear));
+  attachTrades(WK, tradeIn(d => d >= _weekStart && d < _weekEnd));
 
   // Compact money for the strips -- whole dollars, so two lines fit a narrow card
   const money0 = n => (!n || isNaN(n)) ? '$0' : '$' + Math.round(n).toLocaleString('en-US');
@@ -634,8 +736,8 @@ function renderDashboard(data) {
   const fundedPpu = fundedSoldWindows ? (totalSale / fundedSoldWindows) : 0;
   
   // PPU Close (all closes: Sold + NG + Rescinded)
-  const closeSale = closes.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
-  const closeSoldWindows = closes.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
+  const closeSale = closesW.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
+  const closeSoldWindows = closesW.reduce((s,r) => s + (parseFloat(r[13])||0), 0);
   const closePpu = closeSoldWindows ? (closeSale / closeSoldWindows) : 0;
   
   const closeRate = runs.length ? (closes.length / runs.length * 100).toFixed(1) : 0;
@@ -644,11 +746,14 @@ function renderDashboard(data) {
   const dateVals = rows.map(r => new Date(r[0])).filter(d => !isNaN(d));
   const firstDate = dateVals.length ? new Date(Math.min(...dateVals.map(d => d.getTime()))) : new Date();
   const weeksElapsed = Math.max(1, Math.ceil((Date.now() - firstDate.getTime()) / (7*24*60*60*1000)));
-  const weeklyAvgIncome = totalCommission / weeksElapsed;
+  // Everything Chris earned, both product lines. This -- not the windows-only
+  // figure -- is what runs at the $250K goal.
+  const incomeYTD = totalCommission + tradeCommission;
+  const weeklyAvgIncome = incomeYTD / weeksElapsed;
   // On-pace year-end: banked so far + weekly rate × weeks remaining in this calendar year
   const yearEnd = new Date(new Date().getFullYear(), 11, 31);
   const weeksRemaining = Math.max(0, (yearEnd.getTime() - Date.now()) / (7*24*60*60*1000));
-  const onPaceYear = totalCommission + (weeklyAvgIncome * weeksRemaining);
+  const onPaceYear = incomeYTD + (weeklyAvgIncome * weeksRemaining);
   // Combined 2026 income picture including archived WinChoice prior-role total
   const PRIOR_WINCHOICE = 36540.68;
   const onPaceCombined = onPaceYear + PRIOR_WINCHOICE;
@@ -657,29 +762,32 @@ function renderDashboard(data) {
     <div class="kpi red">
       <div class="kpi-label">Total Revenue</div>
       <div class="kpi-value">${fmtMoney(totalSale) || '$0.00'}</div>
-      <div class="kpi-sub">${fundedSoldWindows} windows sold</div>
+      <div class="kpi-sub">${fundedSoldWindows} windows sold · windows revenue only</div>
+      <div class="kpi-sub">+ ${fmtMoney(tradeRevenue) || '$0.00'} trades (${tradeSold.length} job${tradeSold.length === 1 ? '' : 's'}) = ${fmtMoney(totalSale + tradeRevenue) || '$0.00'} all in</div>
       <div class="kpi-sub">${_lmName} (last month): ${fmtMoney(lmRevenue) || '$0.00'} · ${lmWindows} windows</div>
       ${scope(
-        `<span class="kpi-scope-val">${money0(MO.revenue)}</span> · ${MO.windows} wnds · ${MO.sold.length} sold`,
-        `<span class="kpi-scope-val">${money0(WK.revenue)}</span> · ${WK.windows} wnds · ${WK.sold.length} sold`
+        `<span class="kpi-scope-val">${money0(MO.allRevenue)}</span> · ${MO.windows} wnds · ${MO.sold.length} sold${MO.tradeCount ? ` · incl ${money0(MO.tradeRevenue)} trades` : ''}`,
+        `<span class="kpi-scope-val">${money0(WK.allRevenue)}</span> · ${WK.windows} wnds · ${WK.sold.length} sold${WK.tradeCount ? ` · incl ${money0(WK.tradeRevenue)} trades` : ''}`
       )}
     </div>
     <div class="kpi green">
       <div class="kpi-label">Income YTD</div>
-      <div class="kpi-value">${fmtMoney(totalCommission) || '$0.00'}</div>
-      <div class="kpi-sub">Toward $250K goal</div>
+      <div class="kpi-value">${fmtMoney(incomeYTD) || '$0.00'}</div>
+      <div class="kpi-sub">Toward $250K goal · windows + trades</div>
+      <div class="kpi-sub">${fmtMoney(totalCommission) || '$0.00'} windows · ${fmtMoney(tradeCommission) || '$0.00'} trades</div>
       <div class="kpi-sub" style="font-weight:700;color:var(--navy);margin-top:4px;">${fmtMoney(weeklyAvgIncome)}/wk avg</div>
       <div class="kpi-sub" style="margin-top:2px;">${fmtMoney(onPaceYear)} on pace / yr-end</div>
       <div class="kpi-sub" style="margin-top:2px;">${fmtMoney(onPaceCombined)} w/ WinChoice</div>
       ${scope(
-        `<span class="kpi-scope-val">${money0(MO.commission)}</span> earned`,
-        `<span class="kpi-scope-val">${money0(WK.commission)}</span> earned`
+        `<span class="kpi-scope-val">${money0(MO.allCommission)}</span> earned${MO.tradeCount ? ` · incl ${money0(MO.tradeCommission)} trades` : ''}`,
+        `<span class="kpi-scope-val">${money0(WK.allCommission)}</span> earned${WK.tradeCount ? ` · incl ${money0(WK.tradeCommission)} trades` : ''}`
       )}
     </div>
     <div class="kpi">
       <div class="kpi-label">Sales Closed</div>
       <div class="kpi-value">${closes.length}</div>
-      <div class="kpi-sub">${ng.length} NG · ${closes.length} combined (incl. rescind)</div>
+      <div class="kpi-sub">${sold.length} sold · ${ng.length} NG · ${rescinded.length} rescinded</div>
+      <div class="kpi-sub">Close = Sold + NG + Rescinded. Only the ${sold.length} sold pay.</div>
       ${scope(
         `<span class="kpi-scope-val">${MO.closes.length}</span> closes · ${MO.sold.length} sold · ${MO.ng.length} NG`,
         `<span class="kpi-scope-val">${WK.closes.length}</span> closes · ${WK.sold.length} sold · ${WK.ng.length} NG`
@@ -700,6 +808,8 @@ function renderDashboard(data) {
       <div class="kpi-sub">${isTagged
         ? `${pitched.length} of ${salesIssued} workable &middot; bad leads out, cancels kept`
         : 'Needs Issue Type in MASTER col AD'}</div>
+      ${isTagged && altPitchPct !== null ? `<div class="kpi-sub" style="margin-top:2px;">${altPitchPct}% if cancels also come out &mdash; <b>unconfirmed w/ Haynes</b></div>` : ''}
+      ${untagged > 0 ? `<div class="kpi-sub" style="margin-top:2px;color:#b45309;">&#9888; ${untagged} no-pitch row${untagged === 1 ? '' : 's'} still missing an Issue Type &mdash; both lenses are provisional</div>` : ''}
       ${scope(
         `<span class="kpi-scope-val">${pct(MO.salesPitchPct)}</span> · ${MO.pitched.length} of ${MO.salesIssued} workable`,
         `<span class="kpi-scope-val">${pct(WK.salesPitchPct)}</span> · ${WK.pitched.length} of ${WK.salesIssued} workable`
@@ -734,7 +844,14 @@ function renderDashboard(data) {
     </div>
   `;
 
-  const recent = rows.slice(-8).reverse();
+  // Most recent by DATE. Was rows.slice(-8), i.e. the last eight SHEET rows,
+  // which is only the same thing while the sheet happens to be in date order.
+  // Ties keep sheet order (later row first) so same-day appts stay stable.
+  const recent = rows
+    .map((r, i) => ({ r, i, t: (d => isNaN(d) ? -Infinity : d.getTime())(new Date(r[0])) }))
+    .sort((a, b) => (b.t - a.t) || (b.i - a.i))
+    .slice(0, 8)
+    .map(x => x.r);
   document.getElementById('recent-table').innerHTML = recent.length ? `
     <table>
       <thead><tr><th>Date</th><th>Customer</th><th>City</th><th>Status</th></tr></thead>
@@ -768,21 +885,53 @@ function renderDashboard(data) {
     </table>
   ` : '<div class="empty-state">No status data yet.</div>';
 
-  document.getElementById('sold-table').innerHTML = sold.length ? `
+  // One ledger, both product lines. A roofing job whose money was correctly
+  // kept off MASTER still has to be visible SOMEWHERE, or clearing col I just
+  // trades a wrong number for a missing one.
+  const soldLedger = [
+    ...sold.filter(isWindowRow).map(r => ({
+      date: r[0], who: r[2] || '', where: r[4] || '', type: 'Windows',
+      sale: parseFloat(r[8]) || 0, wnds: r[13] || '', comm: parseFloat(r[10]) || 0
+    })),
+    ...tradeSold.map(r => ({
+      date: r[1], who: r[2] || '', where: '', type: r[3] || 'Trade',
+      sale: parseFloat(r[5]) || 0, wnds: '', comm: parseFloat(r[6]) || 0
+    }))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  document.getElementById('sold-table').innerHTML = soldLedger.length ? `
     <table>
-      <thead><tr><th>Date</th><th>Customer</th><th>City</th><th>Total Sale</th><th>Windows</th><th>Commission</th></tr></thead>
-      <tbody>${sold.slice().reverse().map(r => `
+      <thead><tr><th>Date</th><th>Customer</th><th>City</th><th>Type</th><th>Total Sale</th><th>Windows</th><th>Commission</th></tr></thead>
+      <tbody>${soldLedger.map(d => `
         <tr>
-          <td>${fmtDate(r[0])}</td>
-          <td>${r[2] || ''}</td>
-          <td>${r[4] || ''}</td>
-          <td>${fmtMoney(r[8])}</td>
-          <td>${r[13] || ''}</td>
-          <td>${fmtMoney(r[10])}</td>
+          <td>${fmtDate(d.date)}</td>
+          <td>${d.who}</td>
+          <td>${d.where}</td>
+          <td>${d.type === 'Windows' ? 'Windows' : `<b>${d.type}</b>`}</td>
+          <td>${fmtMoney(d.sale)}</td>
+          <td>${d.wnds}</td>
+          <td>${fmtMoney(d.comm)}</td>
         </tr>`).join('')}
       </tbody>
+      <tfoot><tr>
+        <td colspan="4"><b>Total</b></td>
+        <td><b>${fmtMoney(soldLedger.reduce((s,d)=>s+d.sale,0))}</b></td>
+        <td><b>${fundedSoldWindows}</b></td>
+        <td><b>${fmtMoney(soldLedger.reduce((s,d)=>s+d.comm,0))}</b></td>
+      </tr></tfoot>
     </table>
-  ` : '<div class="empty-state"><div class="big">🎯</div><div>First sale awaits!</div></div>';
+  ` : '<div class="empty-state"><div class="big">\u{1F3AF}</div><div>First sale awaits!</div></div>';
+
+  // ---- Data check banner ---------------------------------------------------
+  const dc = document.getElementById('data-check');
+  if (dc) {
+    dc.innerHTML = dataIssues.length
+      ? `<div class="card" style="border-left:4px solid #b45309;">
+           <h2 style="color:#b45309;">&#9888; Data check &mdash; ${dataIssues.length} row${dataIssues.length === 1 ? '' : 's'} need${dataIssues.length === 1 ? 's' : ''} attention</h2>
+           <ul style="margin:6px 0 0 18px;line-height:1.6;">${dataIssues.map(x => `<li>${x}</li>`).join('')}</ul>
+         </div>`
+      : '';
+  }
 }
 
 loadAll();

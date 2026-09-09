@@ -231,7 +231,10 @@ async function loadMap() {
       .map(c => ({ city: c, runs: cityAgg[c].runs, closes: cityAgg[c].closes,
                    rate: cityAgg[c].runs ? cityAgg[c].closes / cityAgg[c].runs : 0 }))
       .filter(c => c.runs > 0)
-      .sort((a, b) => b.runs - a.runs || b.rate - a.rate);
+      // Close rate, highest first. Was sorted by RUNS first, which is why a
+      // 50% city sat above a 100% one. Ties break on volume, so among equal
+      // rates the city you have actually worked more shows up first.
+      .sort((a, b) => b.rate - a.rate || b.runs - a.runs || a.city.localeCompare(b.city));
     document.getElementById('cityRows').innerHTML = cityRowsArr.length
       ? cityRowsArr.map(c =>
           '<div class="city-row"><span>' + c.city + '</span>'
