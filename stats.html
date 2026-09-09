@@ -579,7 +579,15 @@ function renderDashboard(data, trades) {
   // OUR number: only Marketing comes out - leads that should never have been
   // issued. Customer cancels STAY IN, because we eat those. This is the number
   // that actually moves when performance changes.
-  const notCharged = rows.filter(r => issueType(r) === 'marketing').length;
+  // BUG FIXED 9/9/26: these filters must look ONLY inside the issued set.
+  // Reschedules are already out of `issued`, so counting an Issue Type sitting
+  // on a Rescheduled row subtracts that row a second time and inflates the
+  // percentage. It was hiding in the alternate lens -- 4 Customer tags live on
+  // Rescheduled rows, which read 97.1% when the real figure is 91.8%. The
+  // Marketing-only number happened to be safe (no Marketing tag is on a
+  // Rescheduled row today), but it would break the first time one was.
+  const inIssued = r => String(r[7]).trim() !== 'Rescheduled';
+  const notCharged = rows.filter(r => inIssued(r) && issueType(r) === 'marketing').length;
   const salesIssued = issued - notCharged;
   const isTagged = rows.some(r => issueType(r) !== '');
   const untagged = rows.filter(r =>
@@ -593,7 +601,7 @@ function renderDashboard(data, trades) {
     : 0;
   // The unconfirmed alternate reading: Customer issues come out as well.
   const altNotCharged = rows.filter(r =>
-    issueType(r) === 'marketing' || issueType(r) === 'customer'
+    inIssued(r) && (issueType(r) === 'marketing' || issueType(r) === 'customer')
   ).length;
   const altIssued = issued - altNotCharged;
   const altPitchPct = altIssued > 0
@@ -684,7 +692,7 @@ function renderDashboard(data, trades) {
     p.closesW = p.closes.filter(isWindowRow);
     p.pitched = subset.filter(r => String(r[21]).trim().toLowerCase() === 'yes');
     p.issued      = subset.filter(r => String(r[7]).trim() !== 'Rescheduled').length;
-    p.notCharged  = subset.filter(r => issueType(r) === 'marketing').length;
+    p.notCharged  = subset.filter(r => inIssued(r) && issueType(r) === 'marketing').length;
     p.salesIssued = p.issued - p.notCharged;
     p.revenue    = p.fundedW.reduce((s,r) => s + (parseFloat(r[8])||0), 0);
     p.commission = p.fundedW.reduce((s,r) => s + (parseFloat(r[10])||0), 0);
